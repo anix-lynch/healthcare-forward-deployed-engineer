@@ -2,16 +2,37 @@
 
 Wraps workflows/triage_assistant.triage() with input guards + output guards
 + observability log.
+
+case_id contract: callers MUST pass a pre-hashed, non-PHI identifier
+(e.g. "DEMO-001", "encounter-3f4a2b", or the output of
+identity_mapper.patient_id_from_mrn). This endpoint defensively hashes
+ANY case_id that looks MRN-shaped (>=6 consecutive digits or starts with
+"MRN") before storing it in audit logs. The contract is documented in
+docs/solution-design.md.
 """
 from __future__ import annotations
+import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from workflows.triage_assistant import triage
 from guardrails import validate_input, InputGuardError, mask_pii
+from integrations.identity_mapper import patient_id_from_mrn
 from observability.logging import audit_log, phi_log
 
 router = APIRouter()
+
+# MRN heuristic: starts with "MRN" OR ≥6 consecutive digits anywhere.
+# False-positive accepted: case_ids like "DEMO-123456" will also get hashed.
+# Better to over-hash than to leak an MRN into audit indexes.
+_MRN_SHAPE = re.compile(r"^MRN[#:\s-]?\d+|^\d{6,}$|\b\d{6,}\b", re.IGNORECASE)
+
+
+def _sanitize_case_id(raw: str) -> tuple[str, bool]:
+    """Return (safe_case_id, was_rewritten). Caller adds a warning if True."""
+    if raw and _MRN_SHAPE.search(raw):
+        return patient_id_from_mrn(raw), True
+    return raw, False
 
 
 class CaseRequest(BaseModel):
@@ -26,6 +47,7 @@ class CaseRequest(BaseModel):
 
 @router.post("/ask")
 def ask(req: CaseRequest) -> dict:
+    safe_case_id, rewritten = _sanitize_case_id(req.case_id)
     try:
         clean_cc = validate_input(req.chief_complaint)
     except InputGuardError as e:
@@ -35,7 +57,7 @@ def ask(req: CaseRequest) -> dict:
     clean_hpi, _ = mask_pii(req.hpi or "")
 
     case = {
-        "case_id": req.case_id,
+        "case_id": safe_case_id,
         "chief_complaint": clean_cc,
         "hpi": clean_hpi,
         "age": req.age,
@@ -44,13 +66,17 @@ def ask(req: CaseRequest) -> dict:
         "vitals": req.vitals or {},
     }
 
-    result = triage(case, case_id=req.case_id)
+    result = triage(case, case_id=safe_case_id)
     if pii_counts:
         result.setdefault("warnings", []).append(f"pii redacted: {dict(pii_counts)}")
+    if rewritten:
+        result.setdefault("warnings", []).append(
+            "case_id appeared MRN-shaped; hashed at API boundary"
+        )
 
-    # Split-sink audit:
+    # Split-sink audit (sanitized case_id only — never the raw MRN):
     #   metadata sink (safe for cloud index + stdout)
-    audit_log(req.case_id, "triage_decision", result)
+    audit_log(safe_case_id, "triage_decision", result)
     #   PHI archive (full payload, restricted volume only)
-    phi_log(req.case_id, "triage_payload", result)
+    phi_log(safe_case_id, "triage_payload", result)
     return result

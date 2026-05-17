@@ -97,6 +97,32 @@ not that they're prod-ready in this synthetic context.
 
 ---
 
+## case_id contract
+
+`POST /v1/ask` takes a `case_id` field. Contract:
+
+```
+WHO SETS IT       caller (vendor integration / charge-nurse UI)
+WHAT IT MUST BE   a pre-hashed, non-PHI identifier
+                    examples:  encounter-3f4a2b · DEMO-001 · case-2026-04-17-7
+                    NOT OK:    raw MRN · patient SSN · DOB · name
+WHY               case_id is indexed into the metadata audit sink (audit.jsonl)
+                  which flows to cloud logging. A raw MRN there = PHI in
+                  cloud logs = HIPAA-adjacent.
+```
+
+Defensive boundary: `app/routers/ask.py` runs a regex on every incoming
+`case_id`. If it matches an MRN shape (≥6 consecutive digits OR starts
+with "MRN"), the endpoint rewrites it via
+`integrations.identity_mapper.patient_id_from_mrn` and adds a warning
+to the response payload (`"case_id appeared MRN-shaped; hashed at API
+boundary"`). Better to over-hash than to leak.
+
+This is fail-closed: the contract is documented here AND enforced at
+the code boundary. The caller can't accidentally bypass it.
+
+---
+
 ## Cross-references
 
 - Customer context: [`customer-brief.md`](customer-brief.md)

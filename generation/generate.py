@@ -11,9 +11,16 @@ The shape:
 The answer text always cites at least one source_id when hits is non-empty.
 Citation validation lives in citations.py — call validate_citations()
 after generation to drop any hallucinated cites.
+
+PHI safety: snippets are PII-masked before being embedded in the answer.
+In production Epic-backed retrieval, hits[i]['snippet'] is past-patient
+narrative text — even after ingest-time PHI redaction, a defensive mask
+at GENERATION time prevents re-emergence of any pattern the ingest layer
+missed (date+name combos, free-form addresses, etc.).
 """
 from __future__ import annotations
 from .citations import extract_citations, validate_citations
+from guardrails.pii_masker import mask_pii
 
 
 def generate_answer(query: str, hits: list[dict]) -> dict:
@@ -38,10 +45,17 @@ def generate_answer(query: str, hits: list[dict]) -> dict:
 
     top = hits[0]
     extras = hits[1:3]
+
+    # Defensive PII mask on the snippet embedded in the answer.
+    # Track total redaction count so the warning is honest.
+    top_snippet_raw = top.get("snippet", "")[:150]
+    top_snippet_masked, top_counts = mask_pii(top_snippet_raw)
+    total_redacted = sum(top_counts.values())
+
     parts: list[str] = []
     parts.append(
         f"Based on similar past records, the most relevant precedent is "
-        f"{top['case_id']}: \"{top.get('snippet', '')[:150]}\"."
+        f"{top['case_id']}: \"{top_snippet_masked}\"."
     )
     if extras:
         parts.append(
@@ -61,5 +75,7 @@ def generate_answer(query: str, hits: list[dict]) -> dict:
     warnings: list[str] = []
     if dropped:
         warnings.append(f"dropped {len(dropped)} hallucinated citation(s)")
+    if total_redacted:
+        warnings.append(f"redacted {total_redacted} PII pattern(s) from retrieved snippets")
 
     return {"answer": answer, "citations": cited, "warnings": warnings}

@@ -34,7 +34,7 @@ Output (live, just run it):
 
 ```json
 {
-  "case_id": "DEMO-001",
+  "case_id": "DEMO-001",                          // pre-hashed, non-PHI identifier
   "esi_tier": 2,
   "tier_bucket": "NOW",
   "confidence": 0.85,

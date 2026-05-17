@@ -53,6 +53,21 @@ def _esi_from_case(case: dict) -> tuple[int, float, list[str]]:
                 red_flags.append(f"high_risk_keyword:{kw}")
                 tier = min(tier, 2)
 
+    # ESI 2 safety floor: SIRS-shape sepsis (customer-brief.md L25 contract).
+    # Two-of-three SIRS criteria + temperature outside 96.8-100.4°F.
+    # Wrapped in try/except so missing vitals degrade to "no flag", not crash.
+    try:
+        temp = float(vitals.get("temp_f")) if vitals.get("temp_f") not in (None, "") else None
+        hr_val = int(vitals.get("hr") or 0)
+        bp_sys = int(vitals.get("bp_sys") or 120)
+        rr_val = int(vitals.get("rr") or 0)
+        temp_abnormal = temp is not None and (temp > 100.4 or temp < 96.8)
+        if temp_abnormal and hr_val > 90 and (bp_sys < 90 or rr_val > 20):
+            red_flags.append("sepsis_shape")
+            tier = min(tier, 2)
+    except (ValueError, TypeError):
+        pass  # missing/malformed vitals → no SIRS flag, fall through
+
     # ESI 2 safety floor: suicidal ideation / self-harm patterns.
     # Per customer-brief.md SAFETY contract:
     #   "zero AI-initiated down-triage of suicidal ideation"

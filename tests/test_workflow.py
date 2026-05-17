@@ -79,3 +79,35 @@ def test_admin_mode_rejects_wrong_token(client, monkeypatch):
 def test_input_guard_blocks_empty(client):
     r = client.post("/v1/ask", json={"case_id": "T", "chief_complaint": ""})
     assert r.status_code == 422  # pydantic rejects before our guard fires
+
+
+def test_generation_masks_pii_from_snippet():
+    """generate_answer() must NOT re-emit PII from retrieved snippets.
+
+    Per Cowork audit: in Epic-backed retrieval, snippets ARE past-patient
+    narrative text. Even with ingest-time PHI redaction, a defensive mask
+    at the generation layer is fail-closed protection against any pattern
+    the ingest layer missed.
+    """
+    from generation.generate import generate_answer
+    fake_hits = [{
+        "case_id": "L1-SSN-LEAK",
+        "snippet": "62yo M, SSN 123-45-6789 visited last week, complained chest pain",
+        "score": 1.0,
+    }]
+    out = generate_answer("chest pain", fake_hits)
+    assert "123-45-6789" not in out["answer"], \
+        "SSN leaked through to rationale despite mask_pii()"
+    assert any("redacted" in w for w in out.get("warnings", [])), \
+        "redaction warning should be appended when mask fires"
+
+
+def test_process_time_header_present(client):
+    """Middleware must stamp X-Process-Time-Ms on every response for
+    request-boundary p95 measurement (includes validation + serialization,
+    not just internal triage() timing).
+    """
+    r = client.get("/health")
+    assert "X-Process-Time-Ms" in r.headers, \
+        "X-Process-Time-Ms middleware header missing"
+    assert int(r.headers["X-Process-Time-Ms"]) >= 0

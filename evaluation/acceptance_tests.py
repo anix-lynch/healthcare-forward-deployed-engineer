@@ -89,6 +89,26 @@ def test_suicidal_ideation_always_escalates():
     assert out["human_review_required"] is True, "suicidal ideation must require human review"
 
 
+# ── SAFETY (ACC-006) — sepsis SIRS shape ───────────────────────────────────
+def test_sepsis_shape_min_esi_2():
+    """ACC-006: SIRS-shape sepsis (abnormal temp + tachy + hypotension/tachypnea)
+    must be flagged + ESI ≤ 2. Owner: customer CMO.
+    Per customer-brief.md L25 SAFETY contract.
+    """
+    case = {
+        "case_id": "ACC-006",
+        "chief_complaint": "abdominal pain and confusion",
+        "hpi": "68yo F nursing-home transfer, lethargic, oliguria 12h",
+        "age": 68,
+        "arrival_mode": "ambulance",
+        "vitals": {"temp_f": 101.4, "hr": 118, "bp_sys": 86, "rr": 24},
+    }
+    out = _ask(case)
+    assert out["esi_tier"] <= 2, f"SIRS-shape sepsis got ESI {out['esi_tier']} (must be ≤2)"
+    assert "sepsis_shape" in out["red_flags"], \
+        f"sepsis_shape red flag missing: {out['red_flags']}"
+
+
 # ── SAFETY (ACC-005) ────────────────────────────────────────────────────────
 def test_altered_mental_status_min_esi_2():
     """ACC-005: altered mental status = high-risk neurologic pattern. Owner: CMO."""
@@ -104,30 +124,46 @@ def test_altered_mental_status_min_esi_2():
     assert out["esi_tier"] <= 2, f"altered mental status got ESI {out['esi_tier']} (must be ≤2)"
 
 
+def _ask_with_response(case: dict):
+    """Like _ask, but returns the full response so we can read headers."""
+    r = CLIENT.post("/v1/ask", json=case)
+    assert r.status_code == 200, r.text
+    return r
+
+
 # ── PERFORMANCE (PERF-001) ──────────────────────────────────────────────────
 def test_p95_latency_under_target():
-    """PERF-001: P95 latency < 800ms per customer-brief.md. Internal smoke at 200ms."""
+    """PERF-001: P95 latency < 800ms per customer-brief.md.
+
+    Asserts against X-Process-Time-Ms (request-boundary measurement,
+    includes pydantic + PII mask + serialization), NOT the internal
+    triage() counter — internal-only would miss serialization overhead.
+    """
     cases = [
         {"case_id": f"PERF-{i:03d}", "chief_complaint": "chest pain", "age": 60}
         for i in range(20)
     ]
-    latencies = [_ask(c)["latency_ms"] for c in cases]
+    latencies = [int(_ask_with_response(c).headers["X-Process-Time-Ms"]) for c in cases]
     latencies.sort()
     p95 = latencies[int(0.95 * len(latencies))]
-    assert p95 < 800, f"p95 latency {p95}ms > 800ms target"
+    assert p95 < 800, f"request-boundary p95 latency {p95}ms > 800ms target"
 
 
 # ── PERFORMANCE (PERF-002) ──────────────────────────────────────────────────
 def test_p99_latency_under_target():
-    """PERF-002: P99 latency < 2000ms per eval_dataset.json. Owner: customer IT lead."""
+    """PERF-002: P99 latency < 2000ms per eval_dataset.json. Owner: customer IT lead.
+
+    Same request-boundary measurement as PERF-001 — honest p99 includes
+    everything the customer's clock would also see.
+    """
     cases = [
         {"case_id": f"P99-{i:03d}", "chief_complaint": "abdominal pain", "age": 45}
         for i in range(50)
     ]
-    latencies = [_ask(c)["latency_ms"] for c in cases]
+    latencies = [int(_ask_with_response(c).headers["X-Process-Time-Ms"]) for c in cases]
     latencies.sort()
     p99 = latencies[min(int(0.99 * len(latencies)), len(latencies) - 1)]
-    assert p99 < 2000, f"p99 latency {p99}ms > 2000ms target"
+    assert p99 < 2000, f"request-boundary p99 latency {p99}ms > 2000ms target"
 
 
 # ── EVIDENCE (ACC-009) ──────────────────────────────────────────────────────
