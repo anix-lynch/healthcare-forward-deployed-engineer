@@ -1,0 +1,6 @@
+# Runtime-only deps for Cloud Run image (no pytest/httpx).
+fastapi~=0.115
+uvicorn[standard]~=0.27
+pydantic~=2.0
+numpy~=1.26
+starlette~=0.40
