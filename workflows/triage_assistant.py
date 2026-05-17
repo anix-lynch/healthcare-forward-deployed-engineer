@@ -54,7 +54,22 @@ def _esi_from_case(case: dict) -> tuple[int, float, list[str]]:
                 tier = min(tier, 2)
 
     # ESI 2 safety floor: SIRS-shape sepsis (customer-brief.md L25 contract).
-    # Two-of-three SIRS criteria + temperature outside 96.8-100.4°F.
+    #
+    # CONSERVATIVE conjunction — requires:
+    #   temp outside 96.8-100.4°F  AND  HR > 90  AND  (BP < 90  OR  RR > 20)
+    #
+    # Clinical context: real SIRS is 2-of-4 (temp / HR / RR / WBC). We drop
+    # WBC because the synthetic Kaggle dataset doesn't carry it. The added
+    # `BP < 90` arm is qSOFA-shaped (modern bedside tool — BP < 100, AMS,
+    # RR ≥ 22) which is the validated successor to SIRS for ED triage.
+    # NEWS2 (UK national early warning score) is the equivalent the
+    # production engagement would use for charge-nurse-validated thresholds.
+    #
+    # Trade-off declared: this is a triage FLAG (not a diagnosis), so the
+    # bar is "vitals look bad enough for human review," not "patient has
+    # sepsis." False positives are acceptable; the keyword path + AMS hook
+    # provides parallel coverage so a missed SIRS-shape doesn't go un-flagged.
+    #
     # Wrapped in try/except so missing vitals degrade to "no flag", not crash.
     try:
         temp = float(vitals.get("temp_f")) if vitals.get("temp_f") not in (None, "") else None

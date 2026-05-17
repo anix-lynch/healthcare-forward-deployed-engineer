@@ -3,14 +3,14 @@
 > **Status:**   AUDIT FINDING — NOT a production incident.
 > **Date:**     2026-05-17
 > **Severity:** P1 (latent — would have been P0 had it shipped to production)
-> **Author:**   on-call FDE (proactive brief↔code drift audit)
+> **Author:**   on-call FDE (proactive brief↔code drift review)
 > **Reviewed by:** vendor lead + customer safety officer (mock sign-off)
 
 ---
 
 ## TL;DR
 
-A pre-Cowork hiring-scorecard audit of `workflows/triage_assistant.py` revealed
+A pre-deployment external code review of `workflows/triage_assistant.py` revealed
 that the `confidence` value returned to the charge nurse was a CONSTANT — 0.85
 when any red flag fired, 0.65 otherwise. The downstream `fallback_logic.should_escalate`
 function checked `if confidence < 0.5`, which could NEVER fire. The "low-confidence
@@ -25,13 +25,13 @@ production. Fixed and shipped before any customer integration.
 ## Timeline (UTC)
 
 ```
-12:01   pre-Cowork audit reads workflows/triage_assistant.py L75:
+12:01   external review reads workflows/triage_assistant.py L75:
             confidence = 0.85 if red_flags else 0.65
         → notes confidence is constant in {0.85, 0.65}
-12:02   audit reads workflows/fallback_logic.py L23:
+12:02   review reads workflows/fallback_logic.py L23:
             if confidence < 0.5: return True
         → notes: 0.5 threshold can NEVER fire with constant confidence
-12:04   audit confirms runbook.md L18 P1-drift entry depends on
+12:04   review confirms runbook.md L18 P1-drift entry depends on
         clinician-vs-AI accept-rate, which depends on AI fallback
         firing on low-confidence cases
 12:05   classify as brief↔code drift bug, severity P1 latent
@@ -43,8 +43,6 @@ production. Fixed and shipped before any customer integration.
         Tests: 7/7 unit + 9/9 acceptance · 0 regressions
 12:11   CI green
 ```
-
-Total: discovery → patch → green CI in ~10 minutes.
 
 ---
 
@@ -74,9 +72,10 @@ This is the classic **brief↔code drift** failure mode:
 
 ## What worked
 
-- The audit pass that caught this was a SCHEDULED activity — Cowork's
-  hiring-scorecard pass treats brief↔code drift as a P0 review dimension.
-  The audit found the bug because the audit was structured to look for it.
+- The review pass that caught this was a SCHEDULED activity — the
+  vendor's standing pre-deployment code review treats brief↔code drift
+  as a P0 dimension. The review found the bug because it was structured
+  to look for it.
 - The fix shipped as ONE commit with a unit test that fails-by-design
   if the formula regresses. The next person who tries to "simplify"
   `_compute_confidence` back to a constant will see ACC-009 break in CI.
@@ -130,28 +129,29 @@ ACTION                                                  OWNER       STATUS
 ## Customer impact assessment
 
 ```
-Patient impact:              NONE (caught pre-production, no live deployment)
-SLO impact:                   NONE
-Audit log impact:             NONE
-Legal review needed:          NO (no PHI, no autonomous decisions)
-Trust impact (CMO debrief):   NEUTRAL+ — surfacing the bug in a postmortem
-                              BEFORE production strengthens trust ("we audit
-                              our own work, we ship the fix with a test that
-                              prevents the regression")
+Patient impact:           NONE (caught pre-production, no live deployment)
+SLO impact:                NONE
+Audit log impact:          NONE
+Legal review needed:       NO (no PHI, no autonomous decisions)
+Trust signal:              vendor surfaced the bug proactively in a
+                           postmortem before any production impact.
+                           Customer safety officer sign-off TBD at the
+                           next quarterly review.
 ```
 
 ---
 
 ## Why ship this as a postmortem
 
-A real customer would ask: "what's your QA story?" The honest answer is
-"we run brief↔code drift audits and write up what we find, even when no
-patient was harmed — same template, real receipts." This file is that answer.
+A real customer asks: "what's your QA story?" The vendor's answer is to
+run brief↔code drift audits and write up what is found, even when no
+patient was harmed — same template, real receipts. This file is the
+artifact that answer points to.
 
-The corrective action `[5] Quarterly brief↔code drift audit` becomes a
-**new operational practice** the vendor commits to. That's the FDE
-deliverable shape: turn an audit finding into a sustained QA habit, not
-just a one-off patch.
+The corrective action `[5] Quarterly brief↔code drift audit` is a
+**new operational practice** the vendor commits to. The FDE deliverable
+shape: turn an audit finding into a sustained QA habit, not a one-off
+patch.
 
 ---
 

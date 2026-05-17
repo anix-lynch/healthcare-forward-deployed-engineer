@@ -30,13 +30,26 @@ PHI_PATH = LOG_DIR / "phi_archive.jsonl"    # full payload — restricted volume
 # Whitelist of payload fields that are safe for the metadata audit sink.
 # Anything not in this list (rationale, similar_cases, snippet, etc.)
 # is PHI-adjacent and goes to the PHI archive only.
+#
+# `warnings` is intentionally INCLUDED — those strings are vendor-emitted
+# operational signals ("pii redacted: {ssn:1}", "case_id appeared MRN-
+# shaped; hashed at API boundary", "redacted N PII pattern(s)"). They
+# describe redactions / defensive actions, NOT patient content. On-call
+# wants these visible in audit.jsonl without digging into the restricted
+# PHI archive.
 _METADATA_FIELDS = {
+    # triage_decision metadata
     "esi_tier",
     "tier_bucket",
     "confidence",
     "mode",
     "latency_ms",
     "human_review_required",
+    "warnings",
+    # admin_mode_change metadata (no PHI; vendor-emitted action audit)
+    "old",
+    "new",
+    "actor",
 }
 
 

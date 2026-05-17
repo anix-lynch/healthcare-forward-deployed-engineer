@@ -22,10 +22,12 @@ from observability.logging import audit_log, phi_log
 
 router = APIRouter()
 
-# MRN heuristic: starts with "MRN" OR ≥6 consecutive digits anywhere.
-# False-positive accepted: case_ids like "DEMO-123456" will also get hashed.
-# Better to over-hash than to leak an MRN into audit indexes.
-_MRN_SHAPE = re.compile(r"^MRN[#:\s-]?\d+|^\d{6,}$|\b\d{6,}\b", re.IGNORECASE)
+# MRN heuristic: starts with "MRN" OR is a pure ≥6-digit string.
+# Tightened from "≥6 digits anywhere" so vendor case_ids like
+# "DEMO-123456" or "encounter-3f4a2b-987654" don't false-positive into
+# the hash path. The two alternations still catch the actual leak
+# vectors: client-side mistake passes a bare MRN, or "MRN12345678".
+_MRN_SHAPE = re.compile(r"^MRN[#:\s-]?\d+$|^\d{6,}$", re.IGNORECASE)
 
 
 def _sanitize_case_id(raw: str) -> tuple[str, bool]:

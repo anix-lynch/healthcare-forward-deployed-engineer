@@ -76,6 +76,28 @@ def test_admin_mode_rejects_wrong_token(client, monkeypatch):
     assert r.status_code == 401, "wrong bearer token must 401"
 
 
+def test_admin_mode_fail_closed_when_token_unset(client, monkeypatch):
+    """Secure-by-default: with no ADMIN_BEARER_TOKEN and no explicit
+    escape hatch, /admin/mode must 503 — never silently open.
+    """
+    monkeypatch.delenv("ADMIN_BEARER_TOKEN", raising=False)
+    monkeypatch.delenv("ADMIN_AUTH_DISABLED", raising=False)
+    r = client.post("/admin/mode", json={"mode": "off"})
+    assert r.status_code == 503, "missing token must fail-closed to 503"
+
+
+def test_admin_mode_escape_hatch_allows_dev_unauth(client, monkeypatch):
+    """Explicit dev escape hatch: ADMIN_AUTH_DISABLED=1 with no token
+    allows admin calls (with a startup warning logged).
+    """
+    monkeypatch.delenv("ADMIN_BEARER_TOKEN", raising=False)
+    monkeypatch.setenv("ADMIN_AUTH_DISABLED", "1")
+    r = client.post("/admin/mode", json={"mode": "rules_fallback"})
+    assert r.status_code == 200
+    # Restore default
+    client.post("/admin/mode", json={"mode": "ai_assist"})
+
+
 def test_input_guard_blocks_empty(client):
     r = client.post("/v1/ask", json={"case_id": "T", "chief_complaint": ""})
     assert r.status_code == 422  # pydantic rejects before our guard fires

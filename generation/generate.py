@@ -76,6 +76,6 @@ def generate_answer(query: str, hits: list[dict]) -> dict:
     if dropped:
         warnings.append(f"dropped {len(dropped)} hallucinated citation(s)")
     if total_redacted:
-        warnings.append(f"redacted {total_redacted} PII pattern(s) from retrieved snippets")
+        warnings.append(f"redacted {total_redacted} PII pattern(s) from retrieved snippet")
 
     return {"answer": answer, "citations": cited, "warnings": warnings}
