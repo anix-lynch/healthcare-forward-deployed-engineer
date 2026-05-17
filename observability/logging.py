@@ -16,12 +16,21 @@ Sink 2: outputs/phi_archive.jsonl (NO stdout mirror)
 
 Retention: customer is responsible for 7-year HIPAA Safe Harbor
 on the PHI archive. Metadata sink can be 30-90 days for ops.
+
+PROTOTYPE LIMITATIONS (acceptable for demo, swap before customer go-live):
+    - file handles are opened per-call (open-append-close). Fine for
+      single-process demo; for concurrent prod load, swap to a
+      thread-safe RotatingFileHandler or a queue-backed writer.
+    - phi_log failures are now logged CRITICAL + re-raised (was silent).
 """
 from __future__ import annotations
 import json
+import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+_log = logging.getLogger(__name__)
 
 LOG_DIR = Path(__file__).resolve().parents[1] / "outputs"
 AUDIT_PATH = LOG_DIR / "audit.jsonl"        # metadata only — safe for cloud index
@@ -37,7 +46,7 @@ PHI_PATH = LOG_DIR / "phi_archive.jsonl"    # full payload — restricted volume
 # describe redactions / defensive actions, NOT patient content. On-call
 # wants these visible in audit.jsonl without digging into the restricted
 # PHI archive.
-_METADATA_FIELDS = {
+_METADATA_FIELDS: frozenset[str] = frozenset({
     # triage_decision metadata
     "esi_tier",
     "tier_bucket",
@@ -50,7 +59,7 @@ _METADATA_FIELDS = {
     "old",
     "new",
     "actor",
-}
+})
 
 
 def _now_iso() -> str:
@@ -92,6 +101,11 @@ def phi_log(case_id: str, event: str, payload: dict) -> None:
 
     Production must mount outputs/phi_archive.jsonl on a volume with
     access ACLs + 7-year retention + an access-audit trail.
+
+    Fail-LOUD on I/O failure: an unlogged triage decision in a healthcare
+    system is a compliance event. Critical-log + re-raise so the caller
+    can decide whether to 502 the request rather than silently returning
+    a triage result with no archived row.
     """
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     row = {
@@ -100,8 +114,17 @@ def phi_log(case_id: str, event: str, payload: dict) -> None:
         "event": event,
         "payload": payload,
     }
-    with PHI_PATH.open("a") as f:
-        f.write(json.dumps(row, default=str) + "\n")
+    try:
+        with PHI_PATH.open("a") as f:
+            f.write(json.dumps(row, default=str) + "\n")
+    except OSError:
+        _log.critical(
+            "PHI archive write FAILED — case_id=%s event=%s. "
+            "An unlogged triage decision is a compliance event; "
+            "caller should 502 rather than return silently.",
+            case_id, event,
+        )
+        raise
     # NOT mirrored to stdout — would leak PHI to container log sink.
 
 

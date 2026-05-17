@@ -33,8 +33,23 @@ _log = logging.getLogger(__name__)
 
 Mode = Literal["ai_assist", "rules_fallback", "stale_data_warning", "off"]
 
-# Process-local state (would be Redis/Postgres in real deployment)
+# Process-local state (would be Redis/Postgres in real deployment).
+# OPERATIONAL GAP: on pod restart or multi-replica deploy, mode silently
+# resets to "ai_assist". Production must back this with a shared store
+# OR ensure single-replica deployment + restart alerting wired so the
+# on-call FDE knows the mode flipped.
+_log.warning(
+    "_mode_state is process-local — will reset to ai_assist on restart. "
+    "Production deploy must use Redis/Postgres-backed state."
+)
 _mode_state = {"mode": "ai_assist"}
+
+# RATE LIMITING (not yet wired): a holder of the bearer token could still
+# hammer /admin/mode (CSRF-style flap attack). Production should add a
+# per-actor rate limit — slowapi middleware or in-memory token bucket.
+# Deferred because the customer's WAF or API gateway typically handles
+# this layer; the app shouldn't double-enforce without knowing the
+# deployment topology.
 
 router = APIRouter()
 
@@ -96,5 +111,8 @@ def set_mode(req: ModeRequest, actor: str = Depends(require_admin)) -> dict:
 
 
 @router.get("/mode")
-def get_mode() -> dict:
+def get_mode(actor: str = Depends(require_admin)) -> dict:
+    """Read current mode. Auth-required: operational posture
+    ("AI is off right now") is itself sensitive info — a public probe
+    would leak that the deployment is degraded."""
     return _mode_state
