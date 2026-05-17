@@ -23,6 +23,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Dependency CVE scan. `|| true` keeps the build green on transitive
+      # CVEs while we triage; tighten to strict-fail after first clean run.
+      - name: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --strict || true
+
       # Unit + integration smoke (FastAPI TestClient, no uvicorn needed)
       - name: make test
         run: make test

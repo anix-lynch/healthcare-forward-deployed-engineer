@@ -21,7 +21,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
-LOG_PATH = Path(__file__).resolve().parents[1] / "outputs" / "audit.jsonl"
+_OUT_DIR = Path(__file__).resolve().parents[1] / "outputs"
+LOG_PATH = _OUT_DIR / "audit.jsonl"
+PHI_PATH = _OUT_DIR / "phi_archive.jsonl"
 
 
 def _parse_ts(ts: str) -> datetime:
@@ -34,17 +36,43 @@ def load_rows(
     hours: float | None = None,
     event_filter: str | None = None,
     case_id_filter: str | None = None,
+    include_phi: bool = False,
 ) -> list[dict]:
-    """Load audit rows from outputs/audit.jsonl with optional filters."""
-    if not LOG_PATH.exists():
-        return []
+    """Load audit rows from outputs/audit.jsonl with optional filters.
+
+    If include_phi=True, ALSO reads outputs/phi_archive.jsonl. Prints
+    a banner warning — phi_archive contains past-patient narrative
+    text and access should be audit-trailed in production.
+    """
+    sources = [LOG_PATH]
+    if include_phi and PHI_PATH.exists():
+        print(
+            "⚠️  --include-phi: reading outputs/phi_archive.jsonl. "
+            "Access should be audit-trailed in production.",
+            file=sys.stderr,
+        )
+        sources.append(PHI_PATH)
 
     cutoff = None
     if hours is not None:
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
     out: list[dict] = []
-    with LOG_PATH.open() as f:
+    for src in sources:
+        if not src.exists():
+            continue
+        out.extend(_load_from(src, cutoff, event_filter, case_id_filter))
+    return out
+
+
+def _load_from(
+    path: Path,
+    cutoff: datetime | None,
+    event_filter: str | None,
+    case_id_filter: str | None,
+) -> list[dict]:
+    out: list[dict] = []
+    with path.open() as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -97,12 +125,15 @@ def main() -> int:
                     help="filter to one case_id (drill-down)")
     ap.add_argument("--raw", action="store_true",
                     help="print full rows as JSONL instead of summary")
+    ap.add_argument("--include-phi", action="store_true",
+                    help="ALSO read phi_archive.jsonl (restricted; warns to stderr)")
     args = ap.parse_args()
 
     rows = load_rows(
         hours=args.hours,
         event_filter=args.event,
         case_id_filter=args.case_id,
+        include_phi=args.include_phi,
     )
 
     if args.raw:

@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from workflows.triage_assistant import triage
 from guardrails import validate_input, InputGuardError, mask_pii
-from observability.logging import audit_log
+from observability.logging import audit_log, phi_log
 
 router = APIRouter()
 
@@ -48,5 +48,9 @@ def ask(req: CaseRequest) -> dict:
     if pii_counts:
         result.setdefault("warnings", []).append(f"pii redacted: {dict(pii_counts)}")
 
-    audit_log(req.case_id, "triage", result)
+    # Split-sink audit:
+    #   metadata sink (safe for cloud index + stdout)
+    audit_log(req.case_id, "triage_decision", result)
+    #   PHI archive (full payload, restricted volume only)
+    phi_log(req.case_id, "triage_payload", result)
     return result

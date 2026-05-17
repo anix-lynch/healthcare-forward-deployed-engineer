@@ -1,8 +1,12 @@
-fastapi>=0.110
-uvicorn[standard]>=0.27
-pydantic>=2.0
-numpy>=1.26
+# Compatible-release pinning (~=) — locks the major+minor but allows
+# patch updates, so CVE patches flow in but breaking API changes don't
+# surprise CI. Tighten to == when you cut a customer release.
+fastapi~=0.115
+uvicorn[standard]~=0.27
+pydantic~=2.0
+numpy~=1.26
+starlette~=0.40
 
 # Tests
-pytest>=7.4
-httpx>=0.27
+pytest~=7.4
+httpx~=0.27

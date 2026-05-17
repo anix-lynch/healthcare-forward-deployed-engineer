@@ -31,8 +31,12 @@ P3  capacity  vector_store size growing > 10% per week    log only · monthly re
    → if 5xx: it's us. If timeout: network/customer-side.
 
 2. Fall back to rules-based mode (charge nurses keep working):
-   POST /admin/mode {"mode": "rules_fallback"}
+   curl -X POST https://<host>/admin/mode \
+     -H "Authorization: Bearer $ADMIN_BEARER_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"mode": "rules_fallback"}'
    → assistant still surfaces ESI suggestion via deterministic rules
+   → token is in customer secret manager; on-call FDE has it via pager handoff
 
 3. Page customer IT lead. Confirm they see the same.
 
@@ -54,7 +58,10 @@ ZERO TOLERANCE. The assistant must never down-triage pediatric < 1y.
 If this fires:
 
 1. Immediately disable assistant:
-   POST /admin/mode {"mode": "off"}
+   curl -X POST https://<host>/admin/mode \
+     -H "Authorization: Bearer $ADMIN_BEARER_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"mode": "off"}'
    Charge nurses see "AI assistant unavailable" banner.
 
 2. Page customer safety officer + CMO within 5 minutes.
@@ -108,7 +115,10 @@ Symptom: integrations/sync_jobs.py last_success_ts > 5 minutes ago.
 2. Manually trigger one sync: python integrations/sync_jobs.py --force
 3. If still lagging: open ticket with customer IT, downgrade assistant
    to "stale data" banner mode:
-   POST /admin/mode {"mode": "stale_data_warning"}
+   curl -X POST https://<host>/admin/mode \
+     -H "Authorization: Bearer $ADMIN_BEARER_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"mode": "stale_data_warning"}'
 ```
 
 ---
@@ -140,6 +150,40 @@ legal counsel          <customer-counsel>                 PHI leak, adverse even
 ```
 
 (Real contact info populated per customer at handoff time.)
+
+---
+
+## Log volumes & PHI
+
+```
+SINK                            CONTENT                       ACCESS
+─────────────────────────────────────────────────────────────────────
+outputs/audit.jsonl             metadata only                 standard
+  + stdout mirror                 esi_tier, confidence, mode,    cloud
+                                  latency_ms, red_flag_count,    logging
+                                  citation_count, tier_bucket    OK to index
+                                NO rationale, NO snippets
+
+outputs/phi_archive.jsonl       full triage payload            RESTRICTED
+  (NO stdout)                     rationale + similar_cases    volume +
+                                  snippets — these ARE         access audit
+                                  past-patient text             + 7-yr retention
+                                                                (HIPAA Safe Harbor)
+```
+
+Production wiring:
+- audit.jsonl → Cloud Logging / App Insights / CloudWatch (indexed, queryable, 30-90d).
+- phi_archive.jsonl → restricted-ACL volume; mount read-only for the on-call
+  CLI; access events themselves audited via cloud KMS or equivalent.
+- stdout (container logs) → goes to the cloud log sink but ONLY carries
+  metadata, never PHI.
+
+On-call drill-down with PHI access:
+```
+python observability/audit_report.py --case-id <id> --include-phi
+```
+Prints a stderr warning when --include-phi fires (access should leave a trail
+in the on-call ticket; quote the ticket id when invoking).
 
 ---
 

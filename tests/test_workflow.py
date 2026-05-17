@@ -51,13 +51,29 @@ def test_triage_returns_complete_response(client):
     assert body["esi_tier"] <= 2
 
 
-def test_admin_mode_switch(client):
-    r = client.post("/admin/mode", json={"mode": "rules_fallback"})
+def test_admin_mode_switch(client, monkeypatch):
+    # Wire a deterministic bearer token for the test.
+    monkeypatch.setenv("ADMIN_BEARER_TOKEN", "test-token-fixture")
+    headers = {"Authorization": "Bearer test-token-fixture"}
+    r = client.post("/admin/mode", json={"mode": "rules_fallback"}, headers=headers)
     assert r.status_code == 200
     assert r.json()["new_mode"] == "rules_fallback"
     # Restore
-    r2 = client.post("/admin/mode", json={"mode": "ai_assist"})
+    r2 = client.post("/admin/mode", json={"mode": "ai_assist"}, headers=headers)
     assert r2.status_code == 200
+
+
+def test_admin_mode_rejects_missing_token(client, monkeypatch):
+    monkeypatch.setenv("ADMIN_BEARER_TOKEN", "test-token-fixture")
+    r = client.post("/admin/mode", json={"mode": "off"})  # no headers
+    assert r.status_code == 401, "missing bearer token must 401"
+
+
+def test_admin_mode_rejects_wrong_token(client, monkeypatch):
+    monkeypatch.setenv("ADMIN_BEARER_TOKEN", "test-token-fixture")
+    headers = {"Authorization": "Bearer wrong-token"}
+    r = client.post("/admin/mode", json={"mode": "off"}, headers=headers)
+    assert r.status_code == 401, "wrong bearer token must 401"
 
 
 def test_input_guard_blocks_empty(client):

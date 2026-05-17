@@ -130,6 +130,19 @@ def test_p99_latency_under_target():
     assert p99 < 2000, f"p99 latency {p99}ms > 2000ms target"
 
 
+# ── EVIDENCE (ACC-009) ──────────────────────────────────────────────────────
+def test_weak_evidence_triggers_human_review():
+    """ACC-009: weak evidence (no hits + no red_flags + no vitals) must
+    yield confidence < 0.5 AND human_review_required = True.
+
+    This test fails-by-design if `_compute_confidence` regresses to a
+    constant (the dead-code bug the audit caught).
+    """
+    from workflows.triage_assistant import _compute_confidence
+    score = _compute_confidence(hits=[], red_flags=[], vitals=None)
+    assert score < 0.5, f"weak-evidence confidence {score} ≥ 0.5 (formula regressed?)"
+
+
 # ── SCHEMA ─────────────────────────────────────────────────────────────────
 def test_response_shape_complete():
     """Every response must include the customer-contracted fields."""

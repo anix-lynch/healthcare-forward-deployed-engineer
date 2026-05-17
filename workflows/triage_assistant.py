@@ -89,8 +89,46 @@ def _esi_from_case(case: dict) -> tuple[int, float, list[str]]:
     except (ValueError, TypeError):
         pass
 
-    confidence = 0.85 if red_flags else 0.65
-    return tier, confidence, red_flags
+    # NOTE: confidence is computed in triage() AFTER retrieval, since the
+    # evidence count depends on hits. _esi_from_case returns 0.0 placeholder
+    # so the signature is unchanged for older callers.
+    return tier, 0.0, red_flags
+
+
+def _compute_confidence(
+    *,
+    hits: list[dict],
+    red_flags: list[str],
+    vitals: dict | None,
+) -> float:
+    """Evidence-weighted confidence score, clamped [0.0, 0.95].
+
+    Replaces the prior constant (0.85 / 0.65) — the constant made the
+    `confidence < 0.5` branch in fallback_logic.should_escalate dead code.
+    This drift was caught by the customer-brief↔code audit:
+        runbook.md L18 promises drift detection; with constant confidence
+        the signal that was supposed to drive it could never fire.
+
+    Formula:
+        base                       0.30   low-evidence floor
+        + 0.20  if ≥1 retrieval hit       (some precedent exists)
+        + 0.10  if ≥3 retrieval hits      (multiple supporting cases)
+        + 0.20  if ≥1 red_flag             (deterministic rule fired)
+        + 0.15  if vitals has ≥2 measured  (objective signal present)
+        clamp [0.0, 0.95]                 never claim 1.0 — leave human headroom
+    """
+    score = 0.30
+    if hits:
+        score += 0.20
+        if len(hits) >= 3:
+            score += 0.10
+    if red_flags:
+        score += 0.20
+    if vitals:
+        measured = sum(1 for v in vitals.values() if v not in (None, "", 0))
+        if measured >= 2:
+            score += 0.15
+    return round(min(0.95, max(0.0, score)), 2)
 
 
 def triage(case: dict, *, case_id: str = "anon") -> dict:
@@ -105,7 +143,10 @@ def triage(case: dict, *, case_id: str = "anon") -> dict:
     query = f"{case.get('chief_complaint', '')} {case.get('hpi', '')[:200]}".strip()
     hits = pipeline.retrieve(query, k=5, method="bm25")
 
-    esi, confidence, red_flags = _esi_from_case(case)
+    esi, _, red_flags = _esi_from_case(case)
+    confidence = _compute_confidence(
+        hits=hits, red_flags=red_flags, vitals=case.get("vitals"),
+    )
     gen = generate_answer(query, hits)
 
     fallback = should_escalate(esi, confidence, red_flags)
