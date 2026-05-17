@@ -1,0 +1,22 @@
+services:
+  triage-assistant:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    image: healthcare-triage-assistant:0.1.0
+    container_name: triage-assistant
+    ports:
+      - "8000:8000"
+    environment:
+      - EHR_TOKEN_URL=${EHR_TOKEN_URL:-https://fake.example/oauth/token}
+      - EHR_CLIENT_ID=${EHR_CLIENT_ID:-demo-client}
+      - SERVICE_PRINCIPAL=${SERVICE_PRINCIPAL:-triage-assistant@customer-vpc}
+    volumes:
+      # Mount the customer's audit log volume here in production
+      - ./../outputs:/app/outputs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
