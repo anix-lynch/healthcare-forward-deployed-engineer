@@ -2,7 +2,7 @@
 
 > **Focused presentation cut of [`healthcare-genai-fullstack`](https://github.com/anix-lynch/healthcare-genai-fullstack) — Forward Deployed Engineer lens.**
 
-This repo presents the **customer-deployment** slice of the master monorepo, narrowed for the Forward Deployed Engineer (FDE) interview signal:
+This repo presents the **customer-deployment** slice of the master monorepo, scoped to the Forward Deployed Engineer (FDE) workflow:
 
 - one scoped customer problem (ER triage at a sample hospital)
 - one integration path (EHR adapter → canonical schema → workflow)
@@ -40,5 +40,5 @@ Full architecture context (3 layers · 7 patterns · multi-cloud adapter):
 This repo is a **presentation lens**, not an independent codebase.  
 When in doubt, the monorepo is authoritative.
 
-The goal here is **interview clarity** for the FDE role specifically,  
+The goal here is **scoped presentation** for the FDE view,  
 not a parallel customer-product project.
