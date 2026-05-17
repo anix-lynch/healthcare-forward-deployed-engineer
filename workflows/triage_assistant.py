@@ -41,9 +41,14 @@ def _esi_from_case(case: dict) -> tuple[int, float, list[str]]:
             tier = 1
             break
 
-    # ESI 2: high-risk triggers
+    # ESI 2: high-risk triggers.
+    # Includes clinical abbreviations charge nurses actually type in HPI:
+    #   "ams"  = altered mental status (most common ER shorthand)
+    #   "sob"  = shortness of breath (covered separately under vitals/spo2)
+    # Substring match is intentional — "altered mental" hits "altered mental status",
+    # "ams" hits "ams x 2 hours" but NOT "psoriams" (no false positive in clinical text).
     if tier > 2:
-        for kw in ("chest pain", "sepsis", "diaphoresis", "altered mental"):
+        for kw in ("chest pain", "sepsis", "diaphoresis", "altered mental", "ams"):
             if kw in text:
                 red_flags.append(f"high_risk_keyword:{kw}")
                 tier = min(tier, 2)

@@ -8,6 +8,16 @@ This is the contract boundary between "customer's EHR shape" and
 "our workflow's expected shape." Keeping it thin + explicit means swapping
 Epic for Cerner or athenahealth is a same-file change, not a stack-wide
 refactor.
+
+NOT YET IMPLEMENTED (intentional scope for this demo):
+    fhir_condition_to_canonical()      Condition (ICD-10 + onset + clinical_status)
+    fhir_medication_to_canonical()     MedicationRequest (rxnorm + dose + frequency)
+    fhir_allergy_to_canonical()        AllergyIntolerance (allergen + reaction)
+
+These three resources matter for richer ER triage (chief complaint is
+often a Condition.code rather than free-text on Encounter). Demo workflow
+reads chief_complaint from Encounter for simplicity; production engagement
+would add the Condition transformer in the same shape as this file.
 """
 from __future__ import annotations
 

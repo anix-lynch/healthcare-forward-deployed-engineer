@@ -48,10 +48,22 @@ def fetch_recent_encounters(patient_mrn: str, limit: int = 10) -> list[dict]:
     return [_to_encounter(r) for r in hits[:limit]]
 
 
-def list_active_intakes() -> list[dict]:
-    """Stub: in real Epic, this hits the /Encounter?status=in-progress endpoint."""
+def list_active_intakes(*, limit: int = 10) -> list[dict]:
+    """Return currently-active intake events (most recent first).
+
+    Production contract: hits Epic's `GET /Encounter?status=in-progress&_count=N`.
+    Returns FHIR Encounter resources with `status=in-progress` ONLY.
+
+    Mock proxy: the Kaggle synthetic dataset has no `encounter.status` column,
+    so we approximate "active" with `Admission Type == Emergency`. This is an
+    honest proxy, NOT a contract match — flagged here so a reviewer doesn't
+    assume the mock filter and the production filter are equivalent.
+    """
     rows = _load_mock_rows()
-    return [_to_intake(r) for r in rows[:10] if r.get("Admission Type") == "Emergency"]
+    # Sort most-recent-first to mirror Epic's default ordering.
+    rows.sort(key=lambda r: r.get("Date of Admission", ""), reverse=True)
+    active = [r for r in rows if r.get("Admission Type") == "Emergency"]
+    return [_to_intake(r) for r in active[:limit]]
 
 
 def _to_intake(row: dict) -> dict:

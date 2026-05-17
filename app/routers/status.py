@@ -21,13 +21,26 @@ def health() -> dict:
     }
 
 
+def _active_ehr_connector_name() -> str:
+    """Resolve which EHR connector is wired today.
+
+    Today: the import-resolved ehr_adapter module name + mode tag.
+    Production: read from an env var (e.g. EHR_CONNECTOR=epic_prod_us_east)
+    that the deploy pipeline sets per customer / per environment, so /status
+    shows "epic_prod_us_east" or "cerner_dev_eu_central" without code change.
+    """
+    import os
+    from integrations import ehr_adapter
+    return os.environ.get("EHR_CONNECTOR", f"{ehr_adapter.__name__} (mock: synthetic CSV)")
+
+
 @router.get("/status")
 def status() -> dict:
     """Returns deployment + integration status for the ops dashboard."""
     from app.routers.admin import _mode_state
     return {
         "mode": _mode_state["mode"],
-        "ehr_connector": "mock (synthetic CSV)",
+        "ehr_connector": _active_ehr_connector_name(),
         "identity_map_age_minutes": 0,
         "ts": _now_iso(),
     }

@@ -12,7 +12,21 @@ from __future__ import annotations
 
 
 def should_escalate(esi: int, confidence: float, red_flags: list[str]) -> bool:
-    """Return True iff the AI assistant should refuse to suggest + escalate."""
+    """Return True iff the AI assistant should refuse to suggest + escalate.
+
+    Confidence bands (deliberately staged, NOT a smooth gradient):
+        confidence < 0.5        → escalate (no AI suggestion shown to nurse)
+        0.5 ≤ confidence < 0.7  → AI suggestion SHOWN, but flagged with
+                                   `human_review_required=True` by the
+                                   triage_assistant — the "suggest + flag"
+                                   pattern. Charge nurse sees the suggestion
+                                   AND the "review required" banner. This is
+                                   intentional: hiding low-mid-confidence AI
+                                   output reduces nurse trust calibration over
+                                   time (they need to learn when it's wrong).
+        confidence ≥ 0.7        → AI suggestion shown, no review banner unless
+                                   ESI=1 or safety_floor:* red flag fires.
+    """
     # ESI 1 always escalates regardless of confidence
     if esi == 1:
         return True
