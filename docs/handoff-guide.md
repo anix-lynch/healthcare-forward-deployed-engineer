@@ -51,17 +51,19 @@ make docker-up
 make docker-down
 make smoke         # post-deploy sanity (deployment/smoke_test.sh)
 
-# Eval
-make eval          # runs golden set, writes outputs/eval_summary.json
-make gate          # fails if metrics regressed vs baseline
+# Customer acceptance gate
+make test          # pytest tests/ — FastAPI surface smoke
+make acceptance    # pytest evaluation/acceptance_tests.py
+                   # — the CONTRACT tests (safety + perf + schema).
+                   # A failure blocks merge per .github/workflows/acceptance.yml.
 ```
 
 ### 3. How to deploy a change
 
 ```
 1. branch + commit + PR
-2. CI runs `make test` + `make eval` + `make gate`
-3. CI blocks merge on any gate violation
+2. CI runs `make test` + `make acceptance`
+3. CI blocks merge on any acceptance failure
 4. merge → CD pipeline → shadow mode for 24h → live
 5. monitor accept-rate + override-rate for 7 days
 ```

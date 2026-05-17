@@ -9,7 +9,7 @@ Retention: customer is responsible for 7-year HIPAA Safe Harbor retention.
 from __future__ import annotations
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 LOG_DIR = Path(__file__).resolve().parents[1] / "outputs"
@@ -20,7 +20,8 @@ def audit_log(case_id: str, event: str, payload: dict) -> None:
     """Write one structured audit record + emit to stdout."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     row = {
-        "ts": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        # tz-aware now() — datetime.utcnow() is deprecated in 3.12+
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "case_id": case_id,
         "event": event,
         "payload": payload,

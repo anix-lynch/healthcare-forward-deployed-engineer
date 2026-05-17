@@ -48,6 +48,18 @@ def _esi_from_case(case: dict) -> tuple[int, float, list[str]]:
                 red_flags.append(f"high_risk_keyword:{kw}")
                 tier = min(tier, 2)
 
+    # ESI 2 safety floor: suicidal ideation / self-harm patterns.
+    # Per customer-brief.md SAFETY contract:
+    #   "zero AI-initiated down-triage of suicidal ideation"
+    # Rules-based detection is intentional — keywords audit cleanly + a
+    # missed pattern fails CLOSED (human review required by `should_escalate`).
+    for kw in ("suicid", "self harm", "self-harm", "harm self", "wants to die",
+               "kill myself", "overdose intent"):
+        if kw in text:
+            red_flags.append(f"safety_floor:suicidal_ideation")
+            tier = min(tier, 2)
+            break
+
     # Vital instability bumps tier toward 2
     if vitals:
         try:
@@ -93,7 +105,10 @@ def triage(case: dict, *, case_id: str = "anon") -> dict:
 
     fallback = should_escalate(esi, confidence, red_flags)
     if fallback:
-        return to_rules_fallback(case_id, case, esi, red_flags, gen["answer"])
+        return to_rules_fallback(
+            case_id, case, esi, red_flags, gen["answer"],
+            latency_ms=int((time.time() - t0) * 1000),
+        )
 
     return {
         "case_id": case_id,
@@ -107,7 +122,14 @@ def triage(case: dict, *, case_id: str = "anon") -> dict:
             {"source_id": h["case_id"], "snippet": (h.get("snippet") or "")[:200]}
             for h in hits[:3]
         ],
-        "human_review_required": esi == 1 or confidence < 0.7,
+        "human_review_required": (
+            esi == 1
+            or confidence < 0.7
+            # Any safety-floor pattern (pediatric < 1y, suicidal ideation, etc.)
+            # MUST route to human regardless of AI confidence — this is the
+            # customer-brief.md safety contract, not a heuristic.
+            or any(f.startswith("safety_floor:") or "pediatric_under_1y" in f for f in red_flags)
+        ),
         "mode": "ai_assist",
         "latency_ms": int((time.time() - t0) * 1000),
         "warnings": gen.get("warnings", []),

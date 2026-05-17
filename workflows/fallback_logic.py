@@ -31,8 +31,16 @@ def to_rules_fallback(
     esi: int,
     red_flags: list[str],
     rationale: str,
+    *,
+    latency_ms: int = 0,
 ) -> dict:
-    """Return a fallback-shaped response when escalation triggers fire."""
+    """Return a fallback-shaped response when escalation triggers fire.
+
+    Shape parity with workflows.triage_assistant.triage() — same key set,
+    so downstream consumers don't have to branch on `mode` to read fields.
+    `latency_ms` defaults to 0 if caller doesn't measure, but should be
+    threaded through from the calling workflow for honest p95 reporting.
+    """
     return {
         "case_id": case_id,
         "esi_tier": esi,
@@ -47,5 +55,6 @@ def to_rules_fallback(
         "similar_cases": [],
         "human_review_required": True,
         "mode": "rules_fallback",
+        "latency_ms": latency_ms,
         "warnings": ["assistant in fallback mode — clinician must verify"],
     }
