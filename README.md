@@ -2,6 +2,10 @@
 
 > **Customer-deployable ER triage assistant** — one hospital problem, one integration path, one workflow, one runbook, one postmortem. Designed for VPC deployment behind a hospital firewall, NOT vendor SaaS. The full "make AI work inside a messy enterprise" loop, not just the model internals.
 
+![Demo](demo.gif)
+
+🔗 **Live:** https://healthcare-fde-2ihyeqmb6q-uw.a.run.app/docs
+
 [![acceptance-gate](https://github.com/anix-lynch/healthcare-forward-deployed-engineer/actions/workflows/acceptance.yml/badge.svg)](https://github.com/anix-lynch/healthcare-forward-deployed-engineer/actions/workflows/acceptance.yml)
 
 **Built for:** AI vendor + health-tech field engineering teams who deploy AI into customer environments. The artifacts here mirror what an FDE actually owns at a hospital site — discovery brief, solution design, runbook, integrations, acceptance tests, smoke deploy, postmortem template.
