@@ -1,5 +1,7 @@
 # healthcare-forward-deployed-engineer
 
+> 🩵 **L3 Influence** part of the [L1→L3 healthcare AI platform](https://gozeroshot.dev) — Truth → Features → Signals → Actions → Human adoption. This repo = the forward-deployed layer where a hospital actually adopts the AI (runbook + human Approve/Override).
+
 > **Customer-deployable ER triage assistant** — one hospital problem, one integration path, one workflow, one runbook, one postmortem. Designed for VPC deployment behind a hospital firewall, NOT vendor SaaS. The full "make AI work inside a messy enterprise" loop, not just the model internals.
 
 ![Demo](demo.gif)
