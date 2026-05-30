@@ -1,9 +1,13 @@
 """FastAPI entrypoint — customer-deployable triage assistant service."""
 from __future__ import annotations
 import time
+from pathlib import Path
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 
 from app.routers import ask, status, admin
+
+_WEB = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="healthcare-triage-assistant",
@@ -30,6 +34,12 @@ async def add_process_time(request: Request, call_next):
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
     response.headers["X-Process-Time-Ms"] = str(elapsed_ms)
     return response
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Charge-nurse UI — the missing terminal node of the architecture diagram."""
+    return FileResponse(_WEB / "index.html")
 
 
 app.include_router(status.router, tags=["meta"])

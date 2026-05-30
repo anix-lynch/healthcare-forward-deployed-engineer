@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Charge-Nurse Triage Assistant — Forward-Deployed</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: { colors: {
+      sand: "#F4EFE6", ink: "#1B2A3A", sea: "#2E6F95", seaDk: "#1F4E6B",
+      mist: "#CFE0E8", coral: "#E07A5F", sage: "#6B9080", sun: "#E9B949"
+    }}}
+  };
+</script>
+</head>
+<body class="bg-sand text-ink min-h-screen">
+<div class="max-w-5xl mx-auto px-5 py-8">
+
+  <!-- header -->
+  <header class="mb-6">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">🏥</span>
+      <div>
+        <h1 class="text-2xl font-bold text-seaDk">Charge-Nurse Triage Assistant</h1>
+        <p class="text-sm text-sea">Forward-Deployed Engineering — the layer where a hospital actually <em>adopts</em> clinical AI (L3 · Influence)</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- mode banner -->
+  <div id="modeBanner" class="hidden rounded-lg px-4 py-2 mb-4 text-sm font-medium"></div>
+
+  <!-- scenarios -->
+  <section class="mb-6">
+    <h2 class="text-xs uppercase tracking-wide text-sea font-semibold mb-2">Pick a scenario (canned, real corpus hit — not a free-text box)</h2>
+    <div class="flex flex-wrap gap-2" id="scenarioRow"></div>
+    <p class="text-xs text-sea/70 mt-2">Each button posts a pre-baked, PHI-free payload that reliably hits the 497-case corpus. Free text is intentionally not the primary surface — arbitrary input misses the corpus and reads as "broken".</p>
+  </section>
+
+  <!-- result -->
+  <section id="result" class="hidden">
+    <!-- tab bar -->
+    <div class="flex gap-1 mb-3">
+      <button data-tab="clinical" class="tabBtn px-4 py-1.5 rounded-t-lg text-sm font-medium">🩺 Clinical</button>
+      <button data-tab="exec" class="tabBtn px-4 py-1.5 rounded-t-lg text-sm font-medium">📊 Executive</button>
+      <button data-tab="eng" class="tabBtn px-4 py-1.5 rounded-t-lg text-sm font-medium">⚙️ Engineer</button>
+    </div>
+
+    <!-- CLINICAL -->
+    <div id="tab-clinical" class="tabPane bg-white rounded-b-lg rounded-tr-lg shadow p-5">
+      <div class="flex items-start gap-5">
+        <div class="text-center shrink-0">
+          <div id="esiBadge" class="w-24 h-24 rounded-2xl flex items-center justify-center text-white text-3xl font-extrabold shadow">–</div>
+          <div id="bucket" class="mt-1 text-sm font-bold"></div>
+        </div>
+        <div class="flex-1">
+          <div class="mb-2"><span class="text-xs uppercase text-sea font-semibold">Red flags</span>
+            <div id="redFlags" class="flex flex-wrap gap-1.5 mt-1"></div></div>
+          <div class="mb-2"><span class="text-xs uppercase text-sea font-semibold">Rationale</span>
+            <p id="rationale" class="text-sm mt-0.5"></p></div>
+          <div class="mb-2"><span class="text-xs uppercase text-sea font-semibold">Why AI is confident — cited cases</span>
+            <div id="citations" class="text-sm mt-0.5 text-ink/80"></div></div>
+          <div id="reviewFlag" class="mt-2 text-sm font-semibold"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXEC -->
+    <div id="tab-exec" class="tabPane hidden bg-white rounded-b-lg rounded-tr-lg shadow p-5">
+      <p class="text-sm text-sea mb-3">Adoption lens — the numbers a hospital ops owner watches before trusting the assistant.</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="execGrid"></div>
+      <p class="text-xs text-sea/70 mt-3">SLO = 800ms p95 at the request boundary (acceptance tests PERF-001/002). Human-review routing is a feature, not a failure — it's how the system earns clinician trust.</p>
+    </div>
+
+    <!-- ENG -->
+    <div id="tab-eng" class="tabPane hidden bg-ink rounded-b-lg rounded-tr-lg shadow p-5">
+      <pre id="rawJson" class="text-xs text-mist overflow-x-auto whitespace-pre-wrap"></pre>
+    </div>
+  </section>
+
+  <!-- degradation ladder -->
+  <section class="mt-8">
+    <h2 class="text-xs uppercase tracking-wide text-sea font-semibold mb-2">Degradation ladder — the trust story (what happens when it breaks)</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+      <div class="bg-sage/20 border border-sage rounded-lg p-3"><b>ai_assist</b><br><span class="text-xs">retrieval + rules + grounded rationale. Full assist.</span></div>
+      <div class="bg-sun/20 border border-sun rounded-lg p-3"><b>stale_data</b><br><span class="text-xs">FHIR feed lagging → banner: clinician must verify vitals.</span></div>
+      <div class="bg-coral/20 border border-coral rounded-lg p-3"><b>rules_fallback</b><br><span class="text-xs">vector store / LLM down → rule-only ESI, still safe.</span></div>
+      <div class="bg-ink/10 border border-ink/40 rounded-lg p-3"><b>off</b><br><span class="text-xs">assistant silent → pure human triage. No silent failure.</span></div>
+    </div>
+    <p class="text-xs text-sea/70 mt-2">On-call flips mode via <code>POST /admin/mode</code> (auth-required, audit-logged). Graceful degradation is the forward-deployed engineer's real deliverable — see <code>runbook.md</code>.</p>
+  </section>
+
+  <footer class="mt-8 pt-4 border-t border-mist text-xs text-sea/70">
+    Live on Cloud Run · scale-to-zero (~$0 idle) · rule-based ESI + BM25 retrieval + grounded template rationale ·
+    <b>makes no LLM calls today</b> (so it consumes $0 of the Vertex credit — honest by design).
+    <span class="block mt-1">Engineer view (<code>/docs</code> · <code>/health</code> · <code>/status</code>) for the raw contract.</span>
+  </footer>
+</div>
+
+<script>
+const SCENARIOS = [
+  { key:"chest", label:"🔴 Chest pain (62M)", payload:{
+      case_id:"DEMO-001", chief_complaint:"substernal chest pressure radiating to jaw",
+      hpi:"30 min substernal chest pressure with diaphoresis, radiates to jaw", age:62,
+      gender:"male", arrival_mode:"ambulance", vitals:{bp:"95/60", hr:122, spo2:92} } },
+  { key:"peds", label:"👶 Pediatric fever (8mo)", payload:{
+      case_id:"DEMO-002", chief_complaint:"high fever and lethargy in infant",
+      hpi:"8-month-old, fever 39.8C, lethargy and poor feeding for 6 hours", age:0,
+      gender:"female", arrival_mode:"walk-in", vitals:{temp:39.8} } },
+  { key:"routine", label:"🟢 Routine well-visit (26F)", payload:{
+      case_id:"DEMO-003", chief_complaint:"annual physical, asymptomatic",
+      hpi:"here for routine annual exam, well-controlled chronic conditions, no acute symptoms",
+      age:26, gender:"female", arrival_mode:"walk-in", vitals:{} } },
+];
+
+const ESI_COLOR = {1:"#B00020",2:"#E07A5F",3:"#E9B949",4:"#6B9080",5:"#2E6F95"};
+
+const row = document.getElementById("scenarioRow");
+SCENARIOS.forEach(s => {
+  const b = document.createElement("button");
+  b.textContent = s.label;
+  b.className = "px-4 py-2 rounded-lg bg-sea text-white text-sm font-medium hover:bg-seaDk transition shadow";
+  b.onclick = () => run(s, b);
+  row.appendChild(b);
+});
+
+document.querySelectorAll(".tabBtn").forEach(t =>
+  t.onclick = () => showTab(t.dataset.tab));
+function showTab(name){
+  document.querySelectorAll(".tabPane").forEach(p => p.classList.add("hidden"));
+  document.getElementById("tab-"+name).classList.remove("hidden");
+  document.querySelectorAll(".tabBtn").forEach(b => {
+    const on = b.dataset.tab === name;
+    b.className = "tabBtn px-4 py-1.5 rounded-t-lg text-sm font-medium " +
+      (on ? "bg-white text-seaDk shadow" : "bg-mist/60 text-sea");
+  });
+}
+
+async function run(s, btn){
+  const old = btn.textContent; btn.textContent = "…"; btn.disabled = true;
+  try {
+    const r = await fetch("/v1/ask", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(s.payload) });
+    const d = await r.json();
+    render(d);
+  } catch(e){ alert("request failed: "+e); }
+  finally { btn.textContent = old; btn.disabled = false; }
+}
+
+function chip(text, cls){ return `<span class="px-2 py-0.5 rounded-full text-xs ${cls}">${text}</span>`; }
+
+function render(d){
+  document.getElementById("result").classList.remove("hidden");
+  showTab("clinical");
+
+  // mode banner
+  const mb = document.getElementById("modeBanner");
+  const mode = d.mode || "ai_assist";
+  const banners = {
+    ai_assist:["bg-sage/20 text-sage","✓ ai_assist — full retrieval + rules"],
+    stale_data:["bg-sun/30 text-yellow-800","⚠ stale_data — verify vitals manually"],
+    rules_fallback:["bg-coral/20 text-coral","⚠ rules_fallback — rule-only ESI"],
+    off:["bg-ink/10 text-ink","■ off — human triage only"]
+  };
+  const [cls,txt] = banners[mode] || banners.ai_assist;
+  mb.className = "rounded-lg px-4 py-2 mb-4 text-sm font-medium " + cls;
+  mb.textContent = "Mode: " + txt;
+  mb.classList.remove("hidden");
+
+  // clinical
+  const esi = d.esi_tier ?? "–";
+  const badge = document.getElementById("esiBadge");
+  badge.textContent = "ESI " + esi;
+  badge.style.background = ESI_COLOR[esi] || "#1B2A3A";
+  document.getElementById("bucket").textContent = d.tier_bucket || "";
+
+  document.getElementById("redFlags").innerHTML =
+    (d.red_flags && d.red_flags.length)
+      ? d.red_flags.map(f => chip(f, "bg-coral/15 text-coral")).join("")
+      : `<span class="text-sm text-sage">none</span>`;
+
+  document.getElementById("rationale").textContent = d.rationale || "—";
+
+  const cites = (d.citations||[]).length
+    ? (d.citations||[]).map(c => chip("📄 "+c, "bg-mist text-seaDk")).join(" ")
+    : "";
+  const sim = (d.similar_cases||[]).map(c =>
+    `<div class="mt-1">↳ <b>${c.source_id}</b>: ${c.snippet||""}</div>`).join("");
+  document.getElementById("citations").innerHTML = (cites||"<i>no cited cases</i>") + sim;
+
+  const rev = document.getElementById("reviewFlag");
+  if (d.human_review_required){
+    rev.textContent = "⚑ Human review required — routed to charge nurse (safety contract).";
+    rev.className = "mt-2 text-sm font-semibold text-coral";
+  } else {
+    rev.textContent = "✓ High-confidence non-urgent — no mandatory human review.";
+    rev.className = "mt-2 text-sm font-semibold text-sage";
+  }
+
+  // exec
+  const lat = d.latency_ms ?? "?";
+  const slo = (typeof lat === "number" && lat <= 800);
+  const conf = d.confidence != null ? Math.round(d.confidence*100)+"%" : "—";
+  const cards = [
+    ["Latency", lat+"ms", slo?"vs 800ms SLO ✓":"vs 800ms SLO ⚠", slo?"text-sage":"text-coral"],
+    ["Confidence", conf, "model self-score", "text-seaDk"],
+    ["Human review", d.human_review_required?"YES":"no", "trust routing", "text-seaDk"],
+    ["Mode", mode, "degradation state", "text-seaDk"],
+  ];
+  document.getElementById("execGrid").innerHTML = cards.map(([k,v,sub,c]) =>
+    `<div class="bg-sand rounded-lg p-3">
+       <div class="text-xs text-sea uppercase">${k}</div>
+       <div class="text-xl font-bold ${c}">${v}</div>
+       <div class="text-xs text-sea/70">${sub}</div></div>`).join("");
+
+  // engineer
+  document.getElementById("rawJson").textContent = JSON.stringify(d, null, 2);
+}
+</script>
+</body>
+</html>
