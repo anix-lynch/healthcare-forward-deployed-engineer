@@ -1,222 +1,224 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Charge-Nurse Triage Assistant — Forward-Deployed</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    theme: { extend: { colors: {
-      sand: "#F4EFE6", ink: "#1B2A3A", sea: "#2E6F95", seaDk: "#1F4E6B",
-      mist: "#CFE0E8", coral: "#E07A5F", sage: "#6B9080", sun: "#E9B949"
-    }}}
-  };
-</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Charge-Nurse Triage Assistant — the human-decision layer (L3)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --s1:#f8fbfd; --s2:#eef4f9; --s3:#e2ecf4; --card:#ffffff;
+    --tp:#0f1923; --ts:#4a6080; --tm:#8aa0b8; --bd:#dde8f0;
+    --acc:#7bb3d9; --acc-h:#5f9bc8; --acc-bg:rgba(123,179,217,.12); --acc-solid:#eaf3fb;
+    --green:#4f8a5b; --green-bg:#e7f1e9; --yellow:#c9a227; --yellow-bg:#fbf5dd;
+    --coral:#d98b6f; --red:#c2453a; --red-bg:#fbe9e6;
+    --sans:"Geist","Inter",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+    --r-md:10px; --r-lg:14px; --r-pill:999px;
+    --sh:0 1px 3px rgba(100,140,180,.10);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--s1);color:var(--ts);font-family:var(--sans);line-height:1.55;
+       -webkit-font-smoothing:antialiased;padding:32px 18px;display:flex;justify-content:center}
+  .wrap{width:100%;max-width:860px}
+  a{color:var(--acc-h);text-decoration:none} a:hover{text-decoration:underline}
+  h1{font-size:25px;font-weight:600;color:var(--tp);margin:0;letter-spacing:-.02em}
+  .lede{font-size:15px;color:var(--ts);margin:8px 0 0;max-width:660px}
+  .lede b{color:var(--tp);font-weight:600}
+  .toprow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  .links{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-family:var(--mono);font-size:11px;font-weight:500;padding:5px 10px;border-radius:var(--r-pill);
+        border:1px solid var(--bd);background:var(--card);color:var(--ts)}
+  .chip.live{border-color:var(--acc);background:var(--acc-bg);color:var(--acc-h)}
+  .step-h{display:flex;align-items:baseline;gap:10px;margin:28px 0 12px}
+  .step-n{font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;background:var(--acc);
+          width:24px;height:24px;border-radius:var(--r-pill);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .step-t{font-size:17px;font-weight:600;color:var(--tp)} .step-s{font-size:13px;color:var(--tm)}
+  .sublbl{font-size:12.5px;color:var(--tm);margin:14px 0 8px;font-family:var(--mono)}
+  .journey{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  @media(max-width:640px){.journey{grid-template-columns:1fr 1fr}}
+  .jp{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--acc);border-radius:var(--r-md);padding:10px 12px}
+  .jn{display:block;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--acc-h);text-transform:uppercase;letter-spacing:.04em}
+  .jd{display:block;font-size:12px;color:var(--ts);margin-top:4px;line-height:1.4}
+  .arts{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:10px}
+  .al{font-size:11px;font-family:var(--mono);color:var(--tm);text-transform:uppercase}
+  .art{font-size:12px;padding:4px 11px;border-radius:var(--r-pill);border:1px solid var(--bd);background:var(--card);color:var(--acc-h)}
+  .art:hover{border-color:var(--acc);background:var(--acc-bg);text-decoration:none}
+  .scn{display:flex;gap:8px;flex-wrap:wrap}
+  .scn button{cursor:pointer;font-family:var(--sans);font-size:13.5px;font-weight:500;padding:9px 16px;
+       border-radius:var(--r-pill);border:1px solid var(--bd);background:var(--card);color:var(--tp);transition:.15s}
+  .scn button:hover{border-color:var(--acc);background:var(--acc-bg)}
+  .scn button.on{background:var(--tp);color:#fff;border-color:var(--tp)}
+  .scn-note{font-size:12px;color:var(--tm);margin-top:6px}
+  /* recommendation card */
+  .rec{background:var(--card);border:1px solid var(--bd);border-radius:var(--r-lg);padding:18px;box-shadow:var(--sh)}
+  .rec-top{display:flex;align-items:center;gap:16px}
+  .esi{width:74px;height:74px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       color:#fff;font-weight:700;flex:0 0 auto}
+  .esi .n{font-size:24px;line-height:1} .esi .b{font-size:10px;font-family:var(--mono);margin-top:2px}
+  .rec-head .ttl{font-size:12px;font-family:var(--mono);color:var(--tm);text-transform:uppercase;letter-spacing:.04em}
+  .rec-head .act{font-size:18px;font-weight:600;color:var(--tp);margin-top:2px}
+  .row{margin-top:14px} .row .lbl{font-size:11px;font-family:var(--mono);text-transform:uppercase;color:var(--tm);letter-spacing:.04em}
+  .flags{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+  .flag{font-size:11.5px;background:var(--red-bg);color:var(--red);padding:3px 9px;border-radius:var(--r-pill)}
+  .rationale{font-size:13.5px;color:var(--tp);margin-top:4px;line-height:1.6}
+  .cites{font-size:12px;color:var(--ts);margin-top:4px;font-family:var(--mono)}
+  .meta{display:flex;gap:18px;margin-top:14px;flex-wrap:wrap;font-size:12px}
+  .meta .m .v{font-size:16px;font-weight:700;color:var(--tp)} .meta .m .k{font-size:11px;color:var(--tm)}
+  .meta .ok{color:var(--green)} .meta .warn{color:var(--coral)}
+  /* L3 decision — the hero */
+  .l3{margin-top:16px;border:1.5px solid var(--acc);border-radius:var(--r-lg);background:var(--acc-solid);padding:16px}
+  .l3 .hd{font-size:13px;font-weight:600;color:var(--acc-h);margin-bottom:4px}
+  .l3 .sub{font-size:12.5px;color:var(--ts);margin-bottom:12px}
+  .l3 .btns{display:flex;gap:8px;flex-wrap:wrap}
+  .l3 button{cursor:pointer;font-family:var(--sans);font-size:14px;font-weight:600;padding:10px 20px;border-radius:var(--r-md);border:1px solid var(--bd);background:var(--card);color:var(--tp);transition:.15s}
+  .l3 button.app:hover{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+  .l3 button.ovr:hover{border-color:var(--coral);background:#fbeee9;color:var(--coral)}
+  .l3 button.hold:hover{border-color:var(--yellow);background:var(--yellow-bg);color:var(--yellow)}
+  .l3log{margin-top:12px;font-size:13px;color:var(--tp);padding:11px 14px;border-radius:var(--r-md);background:var(--card);border:1px solid var(--bd);display:none}
+  .l3log.show{display:block}
+  /* degradation ladder */
+  .ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px}
+  @media(max-width:640px){.ladder{grid-template-columns:1fr 1fr}}
+  .rung{border:1px solid var(--bd);border-radius:var(--r-md);padding:10px;background:var(--card)}
+  .rung b{color:var(--tp);font-size:12.5px} .rung span{color:var(--tm);font-size:11px}
+  .foot{margin-top:32px;padding-top:16px;border-top:1px solid var(--bd);font-size:12px;color:var(--tm)}
+</style>
 </head>
-<body class="bg-sand text-ink min-h-screen">
-<div class="max-w-5xl mx-auto px-5 py-8">
+<body>
+<div class="wrap">
 
-  <!-- header -->
-  <header class="mb-6">
-    <div class="flex items-center gap-3">
-      <span class="text-3xl">🏥</span>
-      <div>
-        <h1 class="text-2xl font-bold text-seaDk">Charge-Nurse Triage Assistant</h1>
-        <p class="text-sm text-sea">Forward-Deployed Engineering — the layer where a hospital actually <em>adopts</em> clinical AI (L3 · Influence)</p>
-      </div>
+  <div class="toprow">
+    <div>
+      <h1>🏥 Charge-Nurse Triage Assistant</h1>
+      <p class="lede"><b>Forward-Deployed Engineering — I land clinical AI inside a hospital's real systems</b>
+        (VPC, behind the firewall — not vendor SaaS), wire it into their EHR workflow, operate it in prod, and
+        drive adoption. The model is the easy part; the engagement is the job.</p>
     </div>
-  </header>
-
-  <!-- mode banner -->
-  <div id="modeBanner" class="hidden rounded-lg px-4 py-2 mb-4 text-sm font-medium"></div>
-
-  <!-- scenarios -->
-  <section class="mb-6">
-    <h2 class="text-xs uppercase tracking-wide text-sea font-semibold mb-2">Pick a scenario (canned, real corpus hit — not a free-text box)</h2>
-    <div class="flex flex-wrap gap-2" id="scenarioRow"></div>
-    <p class="text-xs text-sea/70 mt-2">Each button posts a pre-baked, PHI-free payload that reliably hits the 497-case corpus. Free text is intentionally not the primary surface — arbitrary input misses the corpus and reads as "broken".</p>
-  </section>
-
-  <!-- result -->
-  <section id="result" class="hidden">
-    <!-- tab bar -->
-    <div class="flex gap-1 mb-3">
-      <button data-tab="clinical" class="tabBtn px-4 py-1.5 rounded-t-lg text-sm font-medium">🩺 Clinical</button>
-      <button data-tab="exec" class="tabBtn px-4 py-1.5 rounded-t-lg text-sm font-medium">📊 Executive</button>
-      <button data-tab="eng" class="tabBtn px-4 py-1.5 rounded-t-lg text-sm font-medium">⚙️ Engineer</button>
+    <div class="links">
+      <a class="chip live" id="livepill" href="#">● live · Cloud Run</a>
+      <a class="chip" target="_blank" rel="noopener" href="https://github.com/anix-lynch/healthcare-forward-deployed-engineer">&lt;/&gt; source</a>
+      <a class="chip" target="_blank" rel="noopener" href="/docs">API</a>
     </div>
+  </div>
 
-    <!-- CLINICAL -->
-    <div id="tab-clinical" class="tabPane bg-white rounded-b-lg rounded-tr-lg shadow p-5">
-      <div class="flex items-start gap-5">
-        <div class="text-center shrink-0">
-          <div id="esiBadge" class="w-24 h-24 rounded-2xl flex items-center justify-center text-white text-3xl font-extrabold shadow">–</div>
-          <div id="bucket" class="mt-1 text-sm font-bold"></div>
-        </div>
-        <div class="flex-1">
-          <div class="mb-2"><span class="text-xs uppercase text-sea font-semibold">Red flags</span>
-            <div id="redFlags" class="flex flex-wrap gap-1.5 mt-1"></div></div>
-          <div class="mb-2"><span class="text-xs uppercase text-sea font-semibold">Rationale</span>
-            <p id="rationale" class="text-sm mt-0.5"></p></div>
-          <div class="mb-2"><span class="text-xs uppercase text-sea font-semibold">Why AI is confident — cited cases</span>
-            <div id="citations" class="text-sm mt-0.5 text-ink/80"></div></div>
-          <div id="reviewFlag" class="mt-2 text-sm font-semibold"></div>
-        </div>
-      </div>
+  <div class="step-h"><span class="step-n">1</span><span class="step-t">The engagement — how this lands at a customer</span>
+    <span class="step-s">· the artifacts an FDE actually delivers, not just a model</span></div>
+  <div class="journey" id="journey">
+    <div class="jp"><span class="jn">discovery</span><span class="jd">customer-brief: the one problem, scoped with the hospital</span></div>
+    <div class="jp"><span class="jn">connect</span><span class="jd">FHIR/EHR adapter + OAuth + identity mapping into their stack</span></div>
+    <div class="jp"><span class="jn">shadow</span><span class="jd">run alongside triage, acceptance tests gate every release</span></div>
+    <div class="jp"><span class="jn">production</span><span class="jd">on-call runbook · postmortems · graceful degradation</span></div>
+  </div>
+  <div class="arts">
+    <span class="al">deliverables →</span>
+    <a class="art" target="_blank" href="https://github.com/anix-lynch/healthcare-forward-deployed-engineer/blob/main/docs/customer-brief.md">customer-brief</a>
+    <a class="art" target="_blank" href="https://github.com/anix-lynch/healthcare-forward-deployed-engineer/blob/main/docs/solution-design.md">solution-design</a>
+    <a class="art" target="_blank" href="https://github.com/anix-lynch/healthcare-forward-deployed-engineer/blob/main/docs/deployment-plan.md">deployment-plan</a>
+    <a class="art" target="_blank" href="https://github.com/anix-lynch/healthcare-forward-deployed-engineer/blob/main/docs/runbook.md">runbook</a>
+    <a class="art" target="_blank" href="https://github.com/anix-lynch/healthcare-forward-deployed-engineer/blob/main/postmortems/002-confidence-detector-blind-spot.md">postmortem</a>
+    <a class="art" target="_blank" href="https://github.com/anix-lynch/healthcare-forward-deployed-engineer/blob/main/docs/handoff-guide.md">handoff</a>
+  </div>
+
+  <div class="step-h"><span class="step-n">2</span><span class="step-t">See it work — pick a patient</span>
+    <span class="step-s">· canned scenarios that hit the 497-case corpus (no free text — that misses the corpus)</span></div>
+  <div class="scn" id="scn"></div>
+  <div class="scn-note" id="scnnote"></div>
+
+  <div class="sublbl">↳ the agent's recommendation · rule-based ESI + BM25 retrieval over similar cases — grounded, no black box</div>
+  <div class="rec" id="rec"><div class="rationale">Pick a patient above.</div></div>
+
+  <div class="step-h"><span class="step-n">3</span><span class="step-t">The accountable human decides</span>
+    <span class="step-s">· the moment most AI demos skip — and where adoption lives or dies</span></div>
+  <div class="l3">
+    <div class="hd" id="l3rec">Agent recommends: —</div>
+    <div class="sub">A charge nurse signs off. The agent never acts alone.</div>
+    <div class="btns">
+      <button class="app" onclick="judge('Approved')">✓ Approve</button>
+      <button class="ovr" onclick="judge('Override')">⚖ Override</button>
+      <button class="hold" onclick="judge('Hold')">⏸ Hold</button>
     </div>
+    <div class="l3log" id="l3log"></div>
+  </div>
 
-    <!-- EXEC -->
-    <div id="tab-exec" class="tabPane hidden bg-white rounded-b-lg rounded-tr-lg shadow p-5">
-      <p class="text-sm text-sea mb-3">Adoption lens — the numbers a hospital ops owner watches before trusting the assistant.</p>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="execGrid"></div>
-      <p class="text-xs text-sea/70 mt-3">SLO = 800ms p95 at the request boundary (acceptance tests PERF-001/002). Human-review routing is a feature, not a failure — it's how the system earns clinician trust.</p>
-    </div>
+  <div class="step-h"><span class="step-n">4</span><span class="step-t">When it breaks — graceful degradation</span>
+    <span class="step-s">· on-call flips mode via /admin/mode; the real forward-deployed deliverable (see runbook)</span></div>
+  <div class="ladder">
+    <div class="rung"><b>ai_assist</b><br><span>retrieval + rules + grounded rationale</span></div>
+    <div class="rung"><b>stale_data</b><br><span>FHIR feed lagging → "verify vitals manually"</span></div>
+    <div class="rung"><b>rules_fallback</b><br><span>vector store down → rule-only ESI, still safe</span></div>
+    <div class="rung"><b>off</b><br><span>assistant silent → pure human triage</span></div>
+  </div>
 
-    <!-- ENG -->
-    <div id="tab-eng" class="tabPane hidden bg-ink rounded-b-lg rounded-tr-lg shadow p-5">
-      <pre id="rawJson" class="text-xs text-mist overflow-x-auto whitespace-pre-wrap"></pre>
-    </div>
-  </section>
-
-  <!-- degradation ladder -->
-  <section class="mt-8">
-    <h2 class="text-xs uppercase tracking-wide text-sea font-semibold mb-2">Degradation ladder — the trust story (what happens when it breaks)</h2>
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-      <div class="bg-sage/20 border border-sage rounded-lg p-3"><b>ai_assist</b><br><span class="text-xs">retrieval + rules + grounded rationale. Full assist.</span></div>
-      <div class="bg-sun/20 border border-sun rounded-lg p-3"><b>stale_data</b><br><span class="text-xs">FHIR feed lagging → banner: clinician must verify vitals.</span></div>
-      <div class="bg-coral/20 border border-coral rounded-lg p-3"><b>rules_fallback</b><br><span class="text-xs">vector store / LLM down → rule-only ESI, still safe.</span></div>
-      <div class="bg-ink/10 border border-ink/40 rounded-lg p-3"><b>off</b><br><span class="text-xs">assistant silent → pure human triage. No silent failure.</span></div>
-    </div>
-    <p class="text-xs text-sea/70 mt-2">On-call flips mode via <code>POST /admin/mode</code> (auth-required, audit-logged). Graceful degradation is the forward-deployed engineer's real deliverable — see <code>runbook.md</code>.</p>
-  </section>
-
-  <footer class="mt-8 pt-4 border-t border-mist text-xs text-sea/70">
-    Live on Cloud Run · scale-to-zero (~$0 idle) · rule-based ESI + BM25 retrieval + grounded template rationale ·
-    <b>makes no LLM calls today</b> (so it consumes $0 of the Vertex credit — honest by design).
-    <span class="block mt-1">Engineer view (<code>/docs</code> · <code>/health</code> · <code>/status</code>) for the raw contract.</span>
-  </footer>
+  <div class="foot">
+    Live on Cloud Run (~$0 idle, scale-to-zero). Rule-based ESI + BM25 retrieval + grounded template rationale —
+    <b>makes no LLM calls today</b> (consumes $0 of the Vertex credit; honest by design). The FDE value is the runbook,
+    the acceptance-test CI gate, the postmortems, and this human-decision layer — not the retrieval algorithm.
+  </div>
 </div>
 
 <script>
-const SCENARIOS = [
-  { key:"chest", label:"🔴 Chest pain (62M)", payload:{
-      case_id:"DEMO-001", chief_complaint:"substernal chest pressure radiating to jaw",
-      hpi:"30 min substernal chest pressure with diaphoresis, radiates to jaw", age:62,
-      gender:"male", arrival_mode:"ambulance", vitals:{bp:"95/60", hr:122, spo2:92} } },
-  { key:"peds", label:"👶 Pediatric fever (8mo)", payload:{
-      case_id:"DEMO-002", chief_complaint:"high fever and lethargy in infant",
-      hpi:"8-month-old, fever 39.8C, lethargy and poor feeding for 6 hours", age:0,
-      gender:"female", arrival_mode:"walk-in", vitals:{temp:39.8} } },
-  { key:"routine", label:"🟢 Routine well-visit (26F)", payload:{
-      case_id:"DEMO-003", chief_complaint:"annual physical, asymptomatic",
-      hpi:"here for routine annual exam, well-controlled chronic conditions, no acute symptoms",
-      age:26, gender:"female", arrival_mode:"walk-in", vitals:{} } },
+const API = '';
+const SCN = [
+  { key:"chest", label:"🔴 Chest pain (62M)", p:{case_id:"DEMO-001", chief_complaint:"substernal chest pressure radiating to jaw", hpi:"30 min substernal chest pressure with diaphoresis, radiates to jaw", age:62, gender:"male", arrival_mode:"ambulance", vitals:{bp:"95/60", hr:122, spo2:92}},
+    note:"62yo, ambulance, substernal pressure + diaphoresis, BP 95/60, HR 122, SpO2 92." },
+  { key:"peds", label:"👶 Infant fever (8mo)", p:{case_id:"DEMO-002", chief_complaint:"high fever and lethargy in infant", hpi:"8-month-old, fever 39.8C, lethargy and poor feeding for 6 hours", age:0, gender:"female", arrival_mode:"walk-in", vitals:{temp:39.8}},
+    note:"8-month-old, fever 39.8°C, lethargy, poor feeding 6h (pediatric safety floor)." },
+  { key:"routine", label:"🟢 Well-visit (26F)", p:{case_id:"DEMO-003", chief_complaint:"annual physical, asymptomatic", hpi:"routine annual exam, well-controlled chronic conditions, no acute symptoms", age:26, gender:"female", arrival_mode:"walk-in", vitals:{}},
+    note:"26yo, routine annual physical, asymptomatic, well-controlled chronic conditions." },
 ];
+const ESI_COLOR = {1:"#9b1d1d",2:"#c2453a",3:"#c9a227",4:"#4f8a5b",5:"#5f9bc8"};
+let lastRec = "—";
 
-const ESI_COLOR = {1:"#B00020",2:"#E07A5F",3:"#E9B949",4:"#6B9080",5:"#2E6F95"};
-
-const row = document.getElementById("scenarioRow");
-SCENARIOS.forEach(s => {
-  const b = document.createElement("button");
-  b.textContent = s.label;
-  b.className = "px-4 py-2 rounded-lg bg-sea text-white text-sm font-medium hover:bg-seaDk transition shadow";
-  b.onclick = () => run(s, b);
-  row.appendChild(b);
-});
-
-document.querySelectorAll(".tabBtn").forEach(t =>
-  t.onclick = () => showTab(t.dataset.tab));
-function showTab(name){
-  document.querySelectorAll(".tabPane").forEach(p => p.classList.add("hidden"));
-  document.getElementById("tab-"+name).classList.remove("hidden");
-  document.querySelectorAll(".tabBtn").forEach(b => {
-    const on = b.dataset.tab === name;
-    b.className = "tabBtn px-4 py-1.5 rounded-t-lg text-sm font-medium " +
-      (on ? "bg-white text-seaDk shadow" : "bg-mist/60 text-sea");
-  });
-}
+const scn = document.getElementById('scn');
+SCN.forEach((s,i)=>{ const b=document.createElement('button'); b.textContent=s.label;
+  b.onclick=()=>run(s,b); scn.appendChild(b); });
 
 async function run(s, btn){
-  const old = btn.textContent; btn.textContent = "…"; btn.disabled = true;
-  try {
-    const r = await fetch("/v1/ask", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify(s.payload) });
-    const d = await r.json();
-    render(d);
-  } catch(e){ alert("request failed: "+e); }
-  finally { btn.textContent = old; btn.disabled = false; }
+  document.querySelectorAll('#scn button').forEach(x=>x.classList.remove('on')); btn.classList.add('on');
+  document.getElementById('scnnote').textContent = s.note;
+  document.getElementById('rec').innerHTML = '<div class="rationale">…agent assessing…</div>';
+  document.getElementById('l3log').classList.remove('show');
+  try{
+    const d = await fetch(API+'/v1/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(s.p)}).then(r=>r.json());
+    renderRec(d);
+  }catch(e){ document.getElementById('rec').innerHTML='<div class="rationale">request failed: '+e+'</div>'; }
 }
 
-function chip(text, cls){ return `<span class="px-2 py-0.5 rounded-full text-xs ${cls}">${text}</span>`; }
+function renderRec(d){
+  const esi=d.esi_tier ?? '–', bucket=d.tier_bucket||'', color=ESI_COLOR[esi]||'#0f1923';
+  const act = bucket==='NOW' ? 'See immediately' : bucket==='SOON' ? 'See soon' : 'Routine queue';
+  lastRec = `ESI ${esi} · ${bucket} — ${act}`;
+  document.getElementById('l3rec').textContent = 'Agent recommends: '+lastRec;
+  const flags = (d.red_flags||[]).length ? d.red_flags.map(f=>`<span class="flag">${f}</span>`).join('') : '<span style="color:var(--green);font-size:12px">none</span>';
+  const cites = (d.citations||[]).length ? d.citations.join(' · ') : '—';
+  const sim = (d.similar_cases||[]).map(c=>c.source_id).filter(Boolean).slice(0,3).join(' · ');
+  const lat = d.latency_ms ?? '?', slo = (typeof lat==='number'&&lat<=800);
+  const conf = d.confidence!=null ? Math.round(d.confidence*100)+'%' : '—';
+  document.getElementById('rec').innerHTML = `
+    <div class="rec-top">
+      <div class="esi" style="background:${color}"><span class="n">${esi}</span><span class="b">${bucket}</span></div>
+      <div class="rec-head"><div class="ttl">recommended acuity</div><div class="act">${act}</div></div>
+    </div>
+    <div class="row"><div class="lbl">red flags</div><div class="flags">${flags}</div></div>
+    <div class="row"><div class="lbl">why — grounded rationale</div><div class="rationale">${(d.rationale||'').trim()||'—'}</div></div>
+    <div class="row"><div class="lbl">cited similar cases</div><div class="cites">${cites}${sim?' · cases '+sim:''}</div></div>
+    <div class="meta">
+      <div class="m"><div class="v ${slo?'ok':'warn'}">${lat}ms</div><div class="k">latency (SLO 800ms)</div></div>
+      <div class="m"><div class="v">${conf}</div><div class="k">confidence</div></div>
+      <div class="m"><div class="v ${d.human_review_required?'warn':'ok'}">${d.human_review_required?'required':'optional'}</div><div class="k">human review</div></div>
+      <div class="m"><div class="v">${d.mode||'ai_assist'}</div><div class="k">mode</div></div>
+    </div>`;
+}
 
-function render(d){
-  document.getElementById("result").classList.remove("hidden");
-  showTab("clinical");
-
-  // mode banner
-  const mb = document.getElementById("modeBanner");
-  const mode = d.mode || "ai_assist";
-  const banners = {
-    ai_assist:["bg-sage/20 text-sage","✓ ai_assist — full retrieval + rules"],
-    stale_data:["bg-sun/30 text-yellow-800","⚠ stale_data — verify vitals manually"],
-    rules_fallback:["bg-coral/20 text-coral","⚠ rules_fallback — rule-only ESI"],
-    off:["bg-ink/10 text-ink","■ off — human triage only"]
-  };
-  const [cls,txt] = banners[mode] || banners.ai_assist;
-  mb.className = "rounded-lg px-4 py-2 mb-4 text-sm font-medium " + cls;
-  mb.textContent = "Mode: " + txt;
-  mb.classList.remove("hidden");
-
-  // clinical
-  const esi = d.esi_tier ?? "–";
-  const badge = document.getElementById("esiBadge");
-  badge.textContent = "ESI " + esi;
-  badge.style.background = ESI_COLOR[esi] || "#1B2A3A";
-  document.getElementById("bucket").textContent = d.tier_bucket || "";
-
-  document.getElementById("redFlags").innerHTML =
-    (d.red_flags && d.red_flags.length)
-      ? d.red_flags.map(f => chip(f, "bg-coral/15 text-coral")).join("")
-      : `<span class="text-sm text-sage">none</span>`;
-
-  document.getElementById("rationale").textContent = d.rationale || "—";
-
-  const cites = (d.citations||[]).length
-    ? (d.citations||[]).map(c => chip("📄 "+c, "bg-mist text-seaDk")).join(" ")
-    : "";
-  const sim = (d.similar_cases||[]).map(c =>
-    `<div class="mt-1">↳ <b>${c.source_id}</b>: ${c.snippet||""}</div>`).join("");
-  document.getElementById("citations").innerHTML = (cites||"<i>no cited cases</i>") + sim;
-
-  const rev = document.getElementById("reviewFlag");
-  if (d.human_review_required){
-    rev.textContent = "⚑ Human review required — routed to charge nurse (safety contract).";
-    rev.className = "mt-2 text-sm font-semibold text-coral";
-  } else {
-    rev.textContent = "✓ High-confidence non-urgent — no mandatory human review.";
-    rev.className = "mt-2 text-sm font-semibold text-sage";
-  }
-
-  // exec
-  const lat = d.latency_ms ?? "?";
-  const slo = (typeof lat === "number" && lat <= 800);
-  const conf = d.confidence != null ? Math.round(d.confidence*100)+"%" : "—";
-  const cards = [
-    ["Latency", lat+"ms", slo?"vs 800ms SLO ✓":"vs 800ms SLO ⚠", slo?"text-sage":"text-coral"],
-    ["Confidence", conf, "model self-score", "text-seaDk"],
-    ["Human review", d.human_review_required?"YES":"no", "trust routing", "text-seaDk"],
-    ["Mode", mode, "degradation state", "text-seaDk"],
-  ];
-  document.getElementById("execGrid").innerHTML = cards.map(([k,v,sub,c]) =>
-    `<div class="bg-sand rounded-lg p-3">
-       <div class="text-xs text-sea uppercase">${k}</div>
-       <div class="text-xl font-bold ${c}">${v}</div>
-       <div class="text-xs text-sea/70">${sub}</div></div>`).join("");
-
-  // engineer
-  document.getElementById("rawJson").textContent = JSON.stringify(d, null, 2);
+function judge(verdict){
+  const log=document.getElementById('l3log');
+  let reason='';
+  if(verdict==='Override') reason = prompt('Override reason (the accountable note that goes in the audit log):','clinical context the model lacks') || '';
+  const mark = verdict==='Approved'?'✅':verdict==='Override'?'⚖️':'⏸️';
+  log.innerHTML = `${mark} <b>${verdict}</b> — agent said <i>${lastRec}</i>${reason?` · note: “${reason}”`:''}<br>
+    <span style="color:var(--tm);font-family:var(--mono);font-size:11px">signed: charge nurse · just now · written to audit trail — the agent recommends, the human is accountable</span>`;
+  log.classList.add('show');
 }
 </script>
 </body>
