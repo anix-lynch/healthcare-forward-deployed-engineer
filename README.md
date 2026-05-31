@@ -6,7 +6,7 @@
 
 ![Demo](demo.gif)
 
-🔗 **Live:** https://healthcare-fde-2ihyeqmb6q-uw.a.run.app/docs
+🔗 **Live:** https://healthcare-fde-2ihyeqmb6q-uw.a.run.app/ · [API docs](https://healthcare-fde-2ihyeqmb6q-uw.a.run.app/docs)
 
 [![acceptance-gate](https://github.com/anix-lynch/healthcare-forward-deployed-engineer/actions/workflows/acceptance.yml/badge.svg)](https://github.com/anix-lynch/healthcare-forward-deployed-engineer/actions/workflows/acceptance.yml)
 
