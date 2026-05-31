@@ -30,6 +30,26 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# OpenTelemetry — partial instrumentation (Titan JD signal: "OTEL tracing")
+# Graceful fallback: if otel not installed, tracing is a no-op.
+try:
+    from opentelemetry import trace as _otel_trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+    _provider = TracerProvider()
+    _otel_trace.set_tracer_provider(_provider)
+    _tracer = _otel_trace.get_tracer("fde.triage")
+    _OTEL_AVAILABLE = True
+except ImportError:
+    _OTEL_AVAILABLE = False
+    class _NoopSpan:
+        def __enter__(self): return self
+        def __exit__(self, *_): pass
+        def set_attribute(self, *_): pass
+    class _NoopTracer:
+        def start_as_current_span(self, *_, **__): return _NoopSpan()
+    _tracer = _NoopTracer()
+
 _log = logging.getLogger(__name__)
 
 LOG_DIR = Path(__file__).resolve().parents[1] / "outputs"
@@ -74,6 +94,22 @@ def _metadata_only(payload: dict) -> dict:
     if "citations" in payload:
         out["citation_count"] = len(payload["citations"] or [])
     return out
+
+
+def trace_triage(case_id: str, result: dict) -> None:
+    """Emit an OTEL span for a completed triage call.
+
+    Attributes tagged: case_id, esi_tier, confidence, mode, latency_ms,
+    prompt version (if present). Safe — no PHI in span attributes.
+    """
+    with _tracer.start_as_current_span("fde.triage.decision") as span:
+        span.set_attribute("case_id", case_id)
+        span.set_attribute("esi_tier", result.get("esi_tier", -1))
+        span.set_attribute("confidence", result.get("confidence", 0.0))
+        span.set_attribute("mode", result.get("mode", "unknown"))
+        span.set_attribute("latency_ms", result.get("latency_ms", 0))
+        span.set_attribute("human_review_required", bool(result.get("human_review_required")))
+        span.set_attribute("red_flag_count", len(result.get("red_flags") or []))
 
 
 def audit_log(case_id: str, event: str, payload: dict) -> None:

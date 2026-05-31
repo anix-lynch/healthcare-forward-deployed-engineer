@@ -7,6 +7,14 @@ pydantic~=2.0
 numpy~=1.26
 starlette~=0.40
 
+# Agentic / LangGraph (stateful agent with checkpointing)
+langgraph~=0.2
+langchain-core~=0.2
+
+# Observability — OpenTelemetry partial instrumentation
+opentelemetry-api~=1.20
+opentelemetry-sdk~=1.20
+
 # Tests
 pytest~=7.4
 httpx~=0.27
