@@ -78,7 +78,7 @@ docs/                         5 customer-facing deliverables
    customer-brief.md           business problem · constraints · success metrics
    solution-design.md          end-to-end flow + component status table
    deployment-plan.md          12-phase rollout (discovery → shadow → soft → pilot → full → handoff)
-   runbook.md                  P0/P1/P2 alert ladder · escalation contacts · safety floors
+   runbook.md                  P0/P1/P2/P3 alert ladder · escalation contacts · safety floors
    handoff-guide.md            customer-team ownership matrix + first-90-day plan
 
 demo/
@@ -112,8 +112,8 @@ generation/                   template grounded answer + citation validation
 data/raw/                     497-row enriched corpus (shared with sibling repos)
 
 evaluation/                   customer success criteria (NOT ML metrics)
-   acceptance_tests.py          5 contract tests
-   eval_dataset.json            8 criteria with category + owner
+   acceptance_tests.py          10 contract tests
+   eval_dataset.json            10 criteria with category + owner
 
 observability/                structured audit logging
    logging.py                   writes outputs/audit.jsonl + stdout JSON line
@@ -124,10 +124,11 @@ deployment/                   shippable unit
    smoke_test.sh                5 curl checks after deploy
    env/dev.env + prod.env.example
 
-postmortems/
-   integration_failure_example.md   real-shaped P1 example w/ timeline + corrective actions
+postmortems/                  2 postmortems (same template)
+   002-confidence-detector-blind-spot.md  brief↔code drift bug caught by self-audit → ACC-009 fix
+   integration_failure_example.md         real-shaped P1 example w/ timeline + corrective actions
 
-tests/                        pytest — FastAPI TestClient smoke (5 tests)
+tests/                        pytest — FastAPI TestClient smoke (11 tests)
 Makefile · requirements.txt
 ```
 
@@ -139,11 +140,16 @@ These are NOT ML metrics. They're the customer-defined success criteria the
 contract specifies. If any fail, the deployment isn't done.
 
 ```
-✅ test_pediatric_under_1y_never_downtriaged    SAFETY · zero-tolerance per runbook
-✅ test_chest_pain_with_diaphoresis_not_downtriaged  SAFETY · high-risk pattern
-✅ test_well_visit_not_uptriaged                EFFICIENCY · don't burn ER resources
-✅ test_p95_latency_under_target                PERFORMANCE · < 800ms target
-✅ test_response_shape_complete                 CONTRACT · all required fields
+ACC-001  pediatric < 1y never down-triaged        SAFETY · zero-tolerance per runbook
+ACC-002  chest pain + diaphoresis not down-triaged SAFETY · high-risk pattern
+ACC-003  well-visit not up-triaged                 EFFICIENCY · don't burn ER resources
+ACC-004  suicidal ideation always escalates        SAFETY · owner: safety officer
+ACC-005  altered mental status min ESI 2           SAFETY · owner: CMO
+ACC-006  sepsis SIRS-shape min ESI 2               SAFETY · qSOFA-shaped
+PERF-001 p95 latency < 800ms                       PERFORMANCE · request-boundary
+PERF-002 p99 latency < 2000ms                      PERFORMANCE · owner: customer IT
+ACC-009  weak evidence → human review              EVIDENCE · fail-by-design (postmortem #002)
+SHAPE    response shape complete                   CONTRACT · all required fields
 ```
 
 The CI workflow (`.github/workflows/acceptance.yml`) runs these on every PR.

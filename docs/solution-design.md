@@ -65,11 +65,11 @@ app/main.py + routers/                   ✅ working       healthcare-genai-engi
 retrieval/                               ✅ working       healthcare-genai-engineer (BM25 only)
 generation/                              ✅ working       healthcare-genai-engineer
 guardrails/                              ✅ working       healthcare-genai-engineer
-workflows/triage_assistant.py           ⚠️ scaffold      NEW (reframes er-triage logic)
-workflows/fallback_logic.py             ⚠️ scaffold      NEW
+workflows/triage_assistant.py           ✅ working       NEW (reframes er-triage logic)
+workflows/fallback_logic.py             ✅ working       NEW
 
-evaluation/acceptance_tests.py          ⚠️ scaffold      NEW (customer success criteria)
-observability/logging.py                ⚠️ scaffold      NEW (structured request log)
+evaluation/acceptance_tests.py          ✅ working       NEW (10 tests, CI-enforced gate)
+observability/logging.py                ✅ working       NEW (structured request log)
 
 deployment/Dockerfile                    ✅ working       NEW
 deployment/docker-compose.yml            ✅ working       NEW
