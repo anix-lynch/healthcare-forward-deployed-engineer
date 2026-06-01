@@ -31,8 +31,15 @@ import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from workflows.triage_assistant import triage
+import os
+from workflows.triage_assistant import triage as _triage_simple
+from workflows.langgraph_triage import triage_stateful as _triage_stateful
 from guardrails import validate_input, InputGuardError, mask_pii
+
+# USE_LANGGRAPH=true → stateful LangGraph agent (checkpointed, HITL-capable)
+# default → simple triage() (fast, stateless, always works)
+_USE_LANGGRAPH = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
+triage = _triage_stateful if _USE_LANGGRAPH else _triage_simple
 from integrations.identity_mapper import patient_id_from_mrn
 from observability.logging import audit_log, phi_log
 

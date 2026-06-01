@@ -71,6 +71,52 @@ make smoke              # post-deploy curl checks (5 smoke tests)
 
 ---
 
+## Repo Map
+
+```
+healthcare-forward-deployed-engineer/
+├── app/                         the live FastAPI service
+│   ├── main.py                  ✅ entry — wires routers
+│   ├── routers/ask.py           ✅ POST /v1/ask — full pipeline (USE_LANGGRAPH flag)
+│   ├── routers/admin.py         ✅ mode toggle + recent audit log
+│   └── routers/status.py        ✅ health check
+├── workflows/                   the decision engine
+│   ├── triage_assistant.py      ✅ core triage — ESI scoring + confidence + fallback
+│   ├── langgraph_triage.py      ✅ stateful LangGraph agent (8-node, checkpointed)
+│   ├── hitl_gate.py             ✅ HITL pause/approve/reject/TTL-expire (SQLite)
+│   ├── reliability.py           ✅ @retry @idempotent @with_timeout decorators
+│   └── fallback_logic.py        ✅ escalation + rules-fallback shape
+├── retrieval/                   ✅ BM25 retriever over 497-row corpus
+├── generation/                  ✅ grounded answer + citation validation
+├── guardrails/                  ✅ input/output validators + PII masker
+├── integrations/                enterprise connectors
+│   ├── auth/oauth_client.py     ✅ OAuth client
+│   ├── ehr_adapter.py           ✅ EHR data adapter
+│   ├── identity_mapper.py       ✅ MRN → safe case_id hashing
+│   └── sync_jobs.py             ✅ background sync jobs
+├── observability/               ✅ split-sink audit log + OTEL spans + audit report
+├── evaluation/                  the proof layer
+│   ├── acceptance_tests.py      ✅ 21 customer-contract tests (CI gate)
+│   ├── replay_pipeline.py       ✅ dataset replay regression gate (exit 1 if <85%)
+│   └── eval_dataset.json        ✅ eval cases
+├── docs/                        📖 5 customer-facing FDE deliverables
+│   ├── customer-brief.md        📖 problem · constraints · success metrics
+│   ├── solution-design.md       📖 end-to-end flow + component map
+│   ├── runbook.md               📖 P0–P3 alert ladder + curl commands
+│   ├── deployment-plan.md       📖 rollout phases + rollback
+│   └── handoff-guide.md         📖 what the customer needs to operate it
+├── postmortems/                 🖼️ 2 real-shaped postmortems (ops discipline proof)
+├── data/raw/                    ✅ 497-row synthetic healthcare corpus
+├── deploy/cloudrun.sh           ✅ ships to Cloud Run
+├── deployment/                  ✅ Dockerfile · docker-compose · smoke test
+├── TITAN_HANDOVER.md            📖 gap analysis vs Titan FDE JD + before/after
+├── .github/workflows/           ✅ CI — acceptance gate + pip-audit on every PR
+├── Makefile                     ✅ install · serve · test · acceptance
+└── README.md · demo.gif         🖼️📖 the 10-second story
+```
+
+---
+
 ## What's inside (FDE deliverables)
 
 ```
